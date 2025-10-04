@@ -1,66 +1,159 @@
--- Enable extensions
-create extension if not exists vector;
+-- Blueprint Snap Database Schema
+-- Dev DNA Edition
 
--- Auth note: expects GitHub OAuth configured in Supabase project.
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "vector";
 
--- Projects
-create table if not exists public.projects (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  owner uuid not null references auth.users(id),
-  created_at timestamp with time zone default now()
+-- Create custom types
+CREATE TYPE plan_status AS ENUM ('draft', 'active', 'completed', 'archived');
+CREATE TYPE event_type AS ENUM ('plan_created', 'plan_updated', 'plan_patched', 'cursor_link_created', 'file_downloaded');
+
+-- Projects table
+CREATE TABLE projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Style profiles (per user)
-create table if not exists public.style_profiles (
-  user_id uuid primary key references auth.users(id),
-  tokens jsonb not null,
-  embedding vector(384),
-  updated_at timestamp with time zone default now()
+-- Style profiles table for user coding preferences
+CREATE TABLE style_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    tokens JSONB NOT NULL DEFAULT '{}',
+    embedding VECTOR(1536), -- OpenAI embedding dimension
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id)
 );
 
--- Patterns (public)
-create table if not exists public.patterns (
-  slug text primary key,
-  template jsonb not null,
-  created_at timestamp with time zone default now()
+-- Development patterns table
+CREATE TABLE patterns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    slug TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    template JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Plans
-create table if not exists public.plans (
-  id uuid primary key default gen_random_uuid(),
-  project_id uuid not null references public.projects(id) on delete cascade,
-  plan_json jsonb not null,
-  created_at timestamp with time zone default now()
+-- Plans table
+CREATE TABLE plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    plan_json JSONB NOT NULL,
+    status plan_status DEFAULT 'draft',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Plan messages (Ask Copilot chat)
-create table if not exists public.plan_messages (
-  id uuid primary key default gen_random_uuid(),
-  plan_id uuid not null references public.plans(id) on delete cascade,
-  role text not null check (role in ('system','user','assistant')),
-  message jsonb not null,
-  created_at timestamp with time zone default now()
+-- Plan messages table for Ask Copilot interactions
+CREATE TABLE plan_messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    user_question TEXT NOT NULL,
+    node_path TEXT NOT NULL,
+    selection_text TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Plan revisions (JSON Patch history)
-create table if not exists public.plan_revisions (
-  id uuid primary key default gen_random_uuid(),
-  plan_id uuid not null references public.plans(id) on delete cascade,
-  patch jsonb not null,
-  rationale text,
-  created_at timestamp with time zone default now()
+-- Plan revisions table for tracking changes
+CREATE TABLE plan_revisions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plan_id UUID NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES plan_messages(id) ON DELETE SET NULL,
+    patch JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Dev events (audit/telemetry)
-create table if not exists public.dev_events (
-  id uuid primary key default gen_random_uuid(),
-  project_id uuid references public.projects(id) on delete set null,
-  user_id uuid references auth.users(id) on delete set null,
-  kind text not null,
-  data jsonb,
-  created_at timestamp with time zone default now()
+-- Development events table for analytics
+CREATE TABLE dev_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    event_type event_type NOT NULL,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Storage buckets expected: repos (repo zips), artifacts (scaffold zips)
+-- Create indexes for better performance
+CREATE INDEX idx_projects_owner ON projects(owner);
+CREATE INDEX idx_style_profiles_user_id ON style_profiles(user_id);
+CREATE INDEX idx_patterns_slug ON patterns(slug);
+CREATE INDEX idx_plans_project_id ON plans(project_id);
+CREATE INDEX idx_plans_user_id ON plans(user_id);
+CREATE INDEX idx_plans_status ON plans(status);
+CREATE INDEX idx_plan_messages_plan_id ON plan_messages(plan_id);
+CREATE INDEX idx_plan_revisions_plan_id ON plan_revisions(plan_id);
+CREATE INDEX idx_dev_events_user_id ON dev_events(user_id);
+CREATE INDEX idx_dev_events_event_type ON dev_events(event_type);
+CREATE INDEX idx_dev_events_created_at ON dev_events(created_at);
 
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Add updated_at triggers
+CREATE TRIGGER update_projects_updated_at BEFORE UPDATE ON projects
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_style_profiles_updated_at BEFORE UPDATE ON style_profiles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_patterns_updated_at BEFORE UPDATE ON patterns
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_plans_updated_at BEFORE UPDATE ON plans
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default patterns
+INSERT INTO patterns (slug, name, description, template) VALUES
+('api-search-pagination', 'API Search with Pagination', 'Standard API endpoint with search and pagination', '{
+    "steps": [
+        {"kind": "code", "target": "routes/api.ts", "summary": "Create API route with search and pagination"},
+        {"kind": "code", "target": "services/search.ts", "summary": "Implement search service"},
+        {"kind": "test", "target": "tests/api.test.ts", "summary": "Add API tests"},
+        {"kind": "test", "target": "tests/search.test.ts", "summary": "Add search service tests"},
+        {"kind": "config", "target": "config/database.ts", "summary": "Update database configuration"}
+    ],
+    "files": [],
+    "risks": ["SQL injection", "Performance with large datasets", "Rate limiting"],
+    "tests": ["Search functionality", "Pagination", "Error handling", "Performance"],
+    "prBody": "Implement API search with pagination functionality"
+}'),
+('crud-operations', 'CRUD Operations', 'Complete CRUD operations for a resource', '{
+    "steps": [
+        {"kind": "code", "target": "models/resource.ts", "summary": "Create resource model"},
+        {"kind": "code", "target": "routes/resource.ts", "summary": "Create CRUD routes"},
+        {"kind": "code", "target": "services/resource.ts", "summary": "Implement business logic"},
+        {"kind": "test", "target": "tests/resource.test.ts", "summary": "Add comprehensive tests"},
+        {"kind": "config", "target": "middleware/validation.ts", "summary": "Add validation middleware"}
+    ],
+    "files": [],
+    "risks": ["Data validation", "Authorization", "Concurrent updates"],
+    "tests": ["Create operation", "Read operation", "Update operation", "Delete operation", "Validation"],
+    "prBody": "Implement complete CRUD operations for resource"
+}'),
+('authentication', 'Authentication System', 'User authentication with JWT', '{
+    "steps": [
+        {"kind": "code", "target": "auth/jwt.ts", "summary": "Implement JWT utilities"},
+        {"kind": "code", "target": "auth/middleware.ts", "summary": "Create auth middleware"},
+        {"kind": "code", "target": "routes/auth.ts", "summary": "Create auth routes"},
+        {"kind": "test", "target": "tests/auth.test.ts", "summary": "Add authentication tests"},
+        {"kind": "config", "target": "config/auth.ts", "summary": "Configure authentication"}
+    ],
+    "files": [],
+    "risks": ["Token security", "Password hashing", "Session management"],
+    "tests": ["Login", "Logout", "Token validation", "Password reset"],
+    "prBody": "Implement secure authentication system"
+}');

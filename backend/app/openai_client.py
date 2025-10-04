@@ -1,159 +1,168 @@
+"""OpenAI client for GPT-5 integration."""
+
+import json
 import os
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
+import structlog
 from openai import OpenAI
-from .models import PlanJSON, PlanStep, PlanFile, StyleTokens
+from pydantic import BaseModel
+
+from app.models import PatchResponse, PlanJSON
+
+logger = structlog.get_logger(__name__)
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+MODEL = os.getenv("GPT5_MODEL", "gpt-5-reasoning")
 
 
-class OpenAIClient:
-    def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5")
-    
-    def generate_plan(self, idea: str, style: StyleTokens, pattern_slug: str = None) -> PlanJSON:
-        """Generate a development plan using GPT-5"""
-        
-        system_prompt = f"""You are an expert software architect and developer. Generate a comprehensive development plan for the given feature idea.
+class PlanOut(BaseModel):
+    """Output model for plan generation."""
+    title: str
+    steps: List[Dict[str, Any]]
+    files: List[Dict[str, str]]
+    risks: List[str]
+    tests: List[str]
+    prBody: str
 
-Style preferences:
-- Language: {style.lang}
-- Indentation: {style.indent} spaces
-- Quotes: {style.quotes}
-- Semicolons: {'enabled' if style.semi else 'disabled'}
-- Testing framework: {style.tests or 'standard'}
-- Route directory: {style.routeDir or 'default'}
-- Import alias: {style.alias or 'default'}
 
-Generate a detailed plan with:
-1. Clear, actionable steps
-2. File structure with realistic code
-3. Risk assessment
-4. Test strategy
-5. PR description
+class PatchOut(BaseModel):
+    """Output model for patch generation."""
+    rationale: str
+    patch: List[Dict[str, Any]]  # RFC6902
 
-Be specific and practical. Consider the developer's coding style preferences."""
 
-        user_prompt = f"""Create a development plan for: "{idea}"
-
-Pattern: {pattern_slug or 'custom'}
-
-Please provide a JSON response with this structure:
-{{
-  "title": "Feature Title",
-  "steps": [
-    {{"kind": "api", "target": "backend", "summary": "Step description"}},
-    {{"kind": "ui", "target": "frontend", "summary": "Step description"}},
-    {{"kind": "test", "target": "repo", "summary": "Step description"}}
-  ],
-  "files": [
-    {{"path": "file/path", "content": "actual code content"}}
-  ],
-  "risks": ["Risk 1", "Risk 2"],
-  "tests": ["Test 1", "Test 2"],
-  "prBody": "## Feature Title\n\nDescription and checklist"
-}}"""
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.7,
-                max_tokens=4000
-            )
-            
-            # Parse the JSON response
-            content = response.choices[0].message.content
-            import json
-            plan_data = json.loads(content)
-            
-            # Convert to PlanJSON
-            steps = [PlanStep(**step) for step in plan_data.get("steps", [])]
-            files = [PlanFile(**file) for file in plan_data.get("files", [])]
-            
-            return PlanJSON(
-                title=plan_data.get("title", idea),
-                steps=steps,
-                files=files,
-                risks=plan_data.get("risks", []),
-                tests=plan_data.get("tests", []),
-                prBody=plan_data.get("prBody", "")
-            )
-            
-        except Exception as e:
-            # Fallback to deterministic plan if OpenAI fails
-            return self._fallback_plan(idea, style)
-    
-    def ask_copilot(self, question: str, context: str, selection: str = None) -> Dict[str, Any]:
-        """Generate copilot advice using GPT-5"""
-        
-        system_prompt = """You are an expert software development copilot. Provide helpful, actionable advice for improving code or development plans.
-
-Be specific, practical, and consider best practices. If asked about a specific selection, focus your advice on that area."""
-
-        user_prompt = f"""Context: {context}
-
-Question: {question}
-
-{f"Selected code/plan section: {selection}" if selection else ""}
-
-Provide:
-1. A clear rationale for your advice
-2. Specific suggestions for improvement
-3. A JSON patch to apply the changes (if applicable)
-
-Format your response as JSON:
-{{
-  "rationale": "Your reasoning and advice",
-  "patch": [
-    {{"op": "replace", "path": "/path/to/field", "value": "new value"}}
-  ]
-}}"""
-
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                temperature=0.3,
-                max_tokens=1000
-            )
-            
-            content = response.choices[0].message.content
-            import json
-            return json.loads(content)
-            
-        except Exception as e:
-            # Fallback response
-            return {
-                "rationale": f"Unable to process request: {str(e)}",
-                "patch": []
-            }
-    
-    def _fallback_plan(self, idea: str, style: StyleTokens) -> PlanJSON:
-        """Fallback deterministic plan if OpenAI fails"""
-        title = idea.strip().capitalize()
-        steps = [
-            PlanStep(kind="api", target="backend", summary="Add endpoint"),
-            PlanStep(kind="ui", target="frontend", summary="Add view"),
-            PlanStep(kind="test", target="repo", summary="Add tests"),
-        ]
-        
-        files = []
-        if style.lang in ("ts", "js"):
-            route_path = style.routeDir or "apps/api/src/routes"
-            file_path = f"{route_path}/endpoint.ts"
-            content = f"export default function handler(req, res) {{\n  res.status(200).json({{ ok: true }})\n}}\n"
-            files.append(PlanFile(path=file_path, content=content))
-        
-        return PlanJSON(
-            title=title,
-            steps=steps,
-            files=files,
-            risks=["Ensure consistent code style application"],
-            tests=["Add unit tests for API handler"],
-            prBody=f"## {title}\n\n- Implements: {idea}\n\n### Checklist\n- [ ] API added\n- [ ] UI added\n- [ ] Tests added"
+async def gpt5_plan(
+    idea: str, 
+    route: str, 
+    pattern: Dict[str, Any], 
+    style: Dict[str, Any]
+) -> PlanJSON:
+    """Generate a development plan using GPT-5."""
+    try:
+        system_prompt = (
+            "You are an expert software architect and developer. "
+            "You produce deterministic, production-safe development plans. "
+            "Return ONLY valid JSON matching the provided schema. "
+            "Be specific about implementation details, consider edge cases, "
+            "and provide comprehensive test scenarios."
         )
+        
+        user_content = {
+            "idea": idea,
+            "route": route,
+            "patternTemplate": pattern.get("template", {}),
+            "styleTokens": style
+        }
+        
+        tool_schema = PlanOut.model_json_schema()
+        
+        # Note: This is a placeholder for the actual GPT-5 API call
+        # The actual implementation will depend on the final GPT-5 API structure
+        response = client.chat.completions.create(
+            model=MODEL,
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(user_content)}
+            ],
+            tools=[{
+                "type": "function",
+                "function": {
+                    "name": "generate_plan",
+                    "description": "Generate a development plan",
+                    "parameters": tool_schema
+                }
+            }]
+        )
+        
+        # Extract the plan data from the response
+        # This is a simplified version - actual implementation may vary
+        plan_data = json.loads(response.choices[0].message.content)
+        
+        # Convert to our PlanJSON model
+        return PlanJSON(
+            title=plan_data["title"],
+            steps=plan_data["steps"],
+            files=plan_data["files"],
+            risks=plan_data["risks"],
+            tests=plan_data["tests"],
+            prBody=plan_data["prBody"]
+        )
+        
+    except Exception as e:
+        logger.error("Failed to generate plan with GPT-5", error=str(e))
+        raise
+
+
+async def gpt5_patch(context: Dict[str, Any]) -> PatchResponse:
+    """Generate a JSON patch using GPT-5."""
+    try:
+        system_prompt = (
+            "You are an expert code reviewer and developer. "
+            "You propose MINIMAL JSON Patch edits to the given nodePath only. "
+            "Return JSON with 'rationale' and 'patch' fields. "
+            "Maximum 10 operations, 10KB total. "
+            "Focus on the specific area requested by the user."
+        )
+        
+        # Note: This is a placeholder for the actual GPT-5 API call
+        response = client.chat.completions.create(
+            model=MODEL,
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(context)}
+            ],
+            tools=[{
+                "type": "function",
+                "function": {
+                    "name": "generate_patch",
+                    "description": "Generate a JSON patch",
+                    "parameters": PatchOut.model_json_schema()
+                }
+            }]
+        )
+        
+        # Extract the patch data from the response
+        patch_data = json.loads(response.choices[0].message.content)
+        
+        return PatchResponse(
+            rationale=patch_data["rationale"],
+            patch=patch_data["patch"]
+        )
+        
+    except Exception as e:
+        logger.error("Failed to generate patch with GPT-5", error=str(e))
+        raise
+
+
+async def analyze_intent(idea: str) -> Dict[str, str]:
+    """Analyze user intent to extract feature and route information."""
+    try:
+        system_prompt = (
+            "You are an expert at analyzing software development requests. "
+            "Extract the main feature and target route from the user's idea. "
+            "Return JSON with 'feature' and 'route' fields. "
+            "Be specific about the route path (e.g., '/users', '/api/products')."
+        )
+        
+        response = client.chat.completions.create(
+            model=MODEL,
+            temperature=0.1,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Analyze this idea: {idea}"}
+            ]
+        )
+        
+        return json.loads(response.choices[0].message.content)
+        
+    except Exception as e:
+        logger.error("Failed to analyze intent", error=str(e))
+        # Fallback to default values
+        return {"feature": "general", "route": "/api"}

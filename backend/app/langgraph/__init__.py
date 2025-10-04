@@ -1,1 +1,1 @@
-# LangGraph skeleton package
+# LangGraph package

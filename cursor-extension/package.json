@@ -1,39 +1,90 @@
 {
   "name": "blueprint-snap",
   "displayName": "Blueprint Snap",
+  "description": "Dev DNA Edition: One-line idea → Plan JSON + style-adapted scaffolds + Ask-Copilot + Cursor deep link",
+  "version": "1.0.0",
   "publisher": "subhrato",
-  "version": "0.1.0",
-  "engines": { "vscode": "^1.85.0" },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "blueprint",
+    "development",
+    "planning",
+    "ai",
+    "copilot",
+    "scaffolding"
+  ],
   "activationEvents": [
     "onUri"
   ],
+  "main": "./out/extension.js",
   "contributes": {
-    "uriHandler": {
-      "scheme": "vscode",
-      "authority": "subhrato.blueprint-snap",
-      "path": "/ingest",
-      "title": "Blueprint Snap Ingest"
-    },
+    "commands": [
+      {
+        "command": "blueprintSnap.validatePayload",
+        "title": "Blueprint: Validate Payload",
+        "category": "Blueprint Snap"
+      },
+      {
+        "command": "blueprintSnap.ingest",
+        "title": "Blueprint: Ingest Plan",
+        "category": "Blueprint Snap"
+      }
+    ],
     "configuration": {
       "title": "Blueprint Snap",
       "properties": {
         "blueprintSnap.secret": {
           "type": "string",
-          "default": "",
-          "description": "Shared secret for HMAC verification"
+          "default": "CHANGE_ME",
+          "description": "HMAC secret for verifying Blueprint Snap payloads"
+        },
+        "blueprintSnap.autoOpenFiles": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically open files after ingesting a plan"
+        },
+        "blueprintSnap.runTasks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically run tasks after ingesting a plan"
         }
       }
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "blueprintSnap.validatePayload"
+        }
+      ]
     }
   },
-  "main": "./dist/extension.js",
   "scripts": {
-    "build": "tsc -p .",
-    "watch": "tsc -w -p ."
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "typescript": "^5.4.0",
-    "vsce": "^2.15.0",
-    "vscode": "^1.1.37"
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x",
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "@vscode/test-electron": "^2.2.0",
+    "vsce": "^2.15.0"
+  },
+  "dependencies": {
+    "crypto": "^1.0.1"
   }
 }

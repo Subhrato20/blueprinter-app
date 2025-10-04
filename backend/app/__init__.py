@@ -1,1 +1,1 @@
-# Package init
+# Blueprint Snap Backend

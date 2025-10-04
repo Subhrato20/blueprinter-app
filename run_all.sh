@@ -1,45 +1,110 @@
 #!/bin/bash
 
-# Blueprinter Full Stack Runner Script
-echo "🚀 Starting Blueprinter Full Stack Application..."
+# Blueprint Snap - Dev DNA Edition
+# Run all services script
 
-# Check if we're in the right directory
-if [ ! -d "backend" ] || [ ! -d "frontend" ]; then
-    echo "❌ Error: Please run this script from the project root directory"
+set -e
+
+echo "🚀 Starting Blueprint Snap - Dev DNA Edition"
+echo "=============================================="
+
+# Check if .env file exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found. Please run setup_env.py first."
     exit 1
 fi
 
-# Function to cleanup background processes
-cleanup() {
-    echo ""
-    echo "🛑 Shutting down servers..."
-    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
-    exit 0
-}
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is not installed"
+    exit 1
+fi
 
-# Set up signal handlers
-trap cleanup SIGINT SIGTERM
+# Check if Node.js is available
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed"
+    exit 1
+fi
+
+# Check if npm is available
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm is not installed"
+    exit 1
+fi
+
+echo "✅ Prerequisites check passed"
+
+# Install dependencies if needed
+echo "📦 Checking dependencies..."
+
+if [ ! -d "node_modules" ]; then
+    echo "Installing root dependencies..."
+    npm install
+fi
+
+if [ ! -d "backend/.venv" ] && [ ! -d "backend/venv" ]; then
+    echo "Installing backend dependencies..."
+    cd backend
+    python3 -m pip install -e .
+    cd ..
+fi
+
+if [ ! -d "frontend/node_modules" ]; then
+    echo "Installing frontend dependencies..."
+    cd frontend
+    npm install
+    cd ..
+fi
+
+if [ ! -d "cursor-extension/node_modules" ]; then
+    echo "Installing extension dependencies..."
+    cd cursor-extension
+    npm install
+    cd ..
+fi
+
+echo "✅ Dependencies check passed"
+
+# Start services
+echo "🚀 Starting services..."
 
 # Start backend in background
-echo "🔧 Starting backend server..."
-./run_backend.sh &
+echo "Starting backend server..."
+cd backend
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
+cd ..
 
 # Wait a moment for backend to start
 sleep 3
 
 # Start frontend in background
-echo "🎨 Starting frontend server..."
-./run_frontend.sh &
+echo "Starting frontend server..."
+cd frontend
+npm run dev &
 FRONTEND_PID=$!
+cd ..
 
+echo "✅ Services started"
 echo ""
-echo "✅ Both servers are starting up!"
-echo "📡 Backend: http://localhost:8000"
-echo "🎨 Frontend: http://localhost:5173"
+echo "🌐 Frontend: http://localhost:5173"
+echo "🔧 Backend API: http://localhost:8000"
 echo "📚 API Docs: http://localhost:8000/docs"
 echo ""
-echo "🛑 Press Ctrl+C to stop both servers"
+echo "Press Ctrl+C to stop all services"
 
-# Wait for both processes
-wait $BACKEND_PID $FRONTEND_PID
+# Function to cleanup on exit
+cleanup() {
+    echo ""
+    echo "🛑 Stopping services..."
+    kill $BACKEND_PID 2>/dev/null || true
+    kill $FRONTEND_PID 2>/dev/null || true
+    echo "✅ Services stopped"
+    exit 0
+}
+
+# Set trap to cleanup on script exit
+trap cleanup SIGINT SIGTERM
+
+# Wait for services
+wait

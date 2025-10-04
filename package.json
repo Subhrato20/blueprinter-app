@@ -1,14 +1,25 @@
 {
-  "name": "blueprinter",
-  "version": "0.1.0",
-  "description": "A webapp that converts a one-line feature idea into a deterministic plan, scaffold, and PR body in the developer's own code style.",
+  "name": "blueprint-snap",
+  "version": "1.0.0",
+  "description": "Blueprint Snap — Dev DNA Edition: One-line idea → Plan JSON + style-adapted scaffolds + Ask-Copilot + Cursor deep link",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "cursor-extension"
+  ],
   "scripts": {
-    "dev": "./run_all.sh",
-    "backend": "./run_backend.sh",
-    "frontend": "./run_frontend.sh",
-    "setup": "python3 setup_env.py"
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:frontend && npm run build:extension",
+    "build:frontend": "cd frontend && npm run build",
+    "build:extension": "cd cursor-extension && npm run build",
+    "package:extension": "cd cursor-extension && vsce package",
+    "setup": "python setup_env.py",
+    "install:all": "npm install && cd backend && pip install -e . && cd ../frontend && npm install && cd ../cursor-extension && npm install"
   },
-  "keywords": ["ai", "planning", "development", "gpt-5", "fastapi", "react"],
-  "author": "Subhrato",
-  "license": "MIT"
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
 }

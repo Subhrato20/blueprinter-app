@@ -1,44 +1,42 @@
 #!/bin/bash
 
-# Blueprinter Backend Runner Script
-echo "🚀 Starting Blueprinter Backend..."
+# Blueprint Snap Backend Runner
+# Dev DNA Edition
 
-# Check if we're in the right directory
-if [ ! -d "backend" ]; then
-    echo "❌ Error: Please run this script from the project root directory"
+set -e
+
+echo "🔧 Starting Blueprint Snap Backend"
+echo "=================================="
+
+# Check if .env file exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found. Please run setup_env.py first."
     exit 1
 fi
 
-# Navigate to backend directory
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "❌ Python 3 is not installed"
+    exit 1
+fi
+
+# Check if we're in the right directory
+if [ ! -d "backend" ]; then
+    echo "❌ Backend directory not found. Please run from project root."
+    exit 1
+fi
+
+echo "✅ Prerequisites check passed"
+
+# Install dependencies if needed
+if [ ! -d "backend/.venv" ] && [ ! -d "backend/venv" ]; then
+    echo "📦 Installing backend dependencies..."
+    cd backend
+    python3 -m pip install -e .
+    cd ..
+fi
+
+# Start backend
+echo "🚀 Starting backend server..."
 cd backend
-
-# Check if virtual environment exists
-if [ ! -d "venv" ]; then
-    echo "📦 Creating virtual environment..."
-    python3 -m venv venv
-fi
-
-# Activate virtual environment
-echo "🔧 Activating virtual environment..."
-source venv/bin/activate
-
-# Install/update dependencies
-echo "📥 Installing dependencies..."
-pip install -e .
-
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-    echo "⚠️  No .env file found. Creating one..."
-    echo "OPENAI_API_KEY=your_openai_api_key_here" > .env
-    echo "OPENAI_MODEL=gpt-5" >> .env
-    echo "CORS_ORIGINS=http://localhost:5173,http://localhost:3000" >> .env
-    echo "📝 Please edit backend/.env and add your OpenAI API key"
-fi
-
-# Start the server
-echo "🌟 Starting FastAPI server on http://localhost:8000"
-echo "📚 API docs available at http://localhost:8000/docs"
-echo "🛑 Press Ctrl+C to stop the server"
-echo ""
-
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

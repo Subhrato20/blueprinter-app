@@ -1,60 +1,149 @@
--- Enable RLS
-alter table public.projects enable row level security;
-alter table public.style_profiles enable row level security;
-alter table public.patterns enable row level security;
-alter table public.plans enable row level security;
-alter table public.plan_messages enable row level security;
-alter table public.plan_revisions enable row level security;
-alter table public.dev_events enable row level security;
+-- Row Level Security (RLS) Policies for Blueprint Snap
 
--- Projects: owner RW
-create policy if not exists projects_owner_read on public.projects
-  for select using (auth.uid() = owner);
-create policy if not exists projects_owner_write on public.projects
-  for all using (auth.uid() = owner);
+-- Enable RLS on all tables
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE style_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patterns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE plan_revisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dev_events ENABLE ROW LEVEL SECURITY;
 
--- Style profiles: owner RW
-create policy if not exists style_owner_read on public.style_profiles
-  for select using (auth.uid() = user_id);
-create policy if not exists style_owner_write on public.style_profiles
-  for all using (auth.uid() = user_id);
+-- Projects policies
+CREATE POLICY "Users can view their own projects" ON projects
+    FOR SELECT USING (auth.uid() = owner);
 
--- Patterns: public read
-create policy if not exists patterns_public_read on public.patterns
-  for select using (true);
-revoke all on public.patterns from anon, authenticated;
-grant select on public.patterns to anon, authenticated;
+CREATE POLICY "Users can create their own projects" ON projects
+    FOR INSERT WITH CHECK (auth.uid() = owner);
 
--- Plans: project owner RW
-create policy if not exists plans_owner_read on public.plans
-  for select using (exists (
-    select 1 from public.projects p where p.id = plans.project_id and p.owner = auth.uid()
-  ));
-create policy if not exists plans_owner_write on public.plans
-  for all using (exists (
-    select 1 from public.projects p where p.id = plans.project_id and p.owner = auth.uid()
-  ));
+CREATE POLICY "Users can update their own projects" ON projects
+    FOR UPDATE USING (auth.uid() = owner);
 
--- Plan messages/revisions inherit via plan
-create policy if not exists plan_msgs_owner_read on public.plan_messages
-  for select using (exists (
-    select 1 from public.plans pl join public.projects pr on pr.id = pl.project_id
-    where pl.id = plan_messages.plan_id and pr.owner = auth.uid()
-  ));
-create policy if not exists plan_msgs_owner_write on public.plan_messages
-  for all using (exists (
-    select 1 from public.plans pl join public.projects pr on pr.id = pl.project_id
-    where pl.id = plan_messages.plan_id and pr.owner = auth.uid()
-  ));
+CREATE POLICY "Users can delete their own projects" ON projects
+    FOR DELETE USING (auth.uid() = owner);
 
-create policy if not exists plan_revs_owner_read on public.plan_revisions
-  for select using (exists (
-    select 1 from public.plans pl join public.projects pr on pr.id = pl.project_id
-    where pl.id = plan_revisions.plan_id and pr.owner = auth.uid()
-  ));
-create policy if not exists plan_revs_owner_write on public.plan_revisions
-  for all using (exists (
-    select 1 from public.plans pl join public.projects pr on pr.id = pl.project_id
-    where pl.id = plan_revisions.plan_id and pr.owner = auth.uid()
-  ));
+-- Style profiles policies
+CREATE POLICY "Users can view their own style profile" ON style_profiles
+    FOR SELECT USING (auth.uid() = user_id);
 
+CREATE POLICY "Users can create their own style profile" ON style_profiles
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own style profile" ON style_profiles
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own style profile" ON style_profiles
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Patterns policies (public read access)
+CREATE POLICY "Anyone can view patterns" ON patterns
+    FOR SELECT USING (true);
+
+CREATE POLICY "Only service role can manage patterns" ON patterns
+    FOR ALL USING (auth.role() = 'service_role');
+
+-- Plans policies
+CREATE POLICY "Users can view their own plans" ON plans
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own plans" ON plans
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own plans" ON plans
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own plans" ON plans
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Plan messages policies
+CREATE POLICY "Users can view messages for their plans" ON plan_messages
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM plans 
+            WHERE plans.id = plan_messages.plan_id 
+            AND plans.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can create messages for their plans" ON plan_messages
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM plans 
+            WHERE plans.id = plan_messages.plan_id 
+            AND plans.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can update messages for their plans" ON plan_messages
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM plans 
+            WHERE plans.id = plan_messages.plan_id 
+            AND plans.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can delete messages for their plans" ON plan_messages
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM plans 
+            WHERE plans.id = plan_messages.plan_id 
+            AND plans.user_id = auth.uid()
+        )
+    );
+
+-- Plan revisions policies
+CREATE POLICY "Users can view revisions for their plans" ON plan_revisions
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM plans 
+            WHERE plans.id = plan_revisions.plan_id 
+            AND plans.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Users can create revisions for their plans" ON plan_revisions
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM plans 
+            WHERE plans.id = plan_revisions.plan_id 
+            AND plans.user_id = auth.uid()
+        )
+    );
+
+-- Dev events policies
+CREATE POLICY "Users can view their own dev events" ON dev_events
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can create their own dev events" ON dev_events
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- Create functions for real-time subscriptions
+CREATE OR REPLACE FUNCTION get_user_plans(user_uuid UUID)
+RETURNS TABLE(id UUID, project_id UUID, plan_json JSONB, status plan_status, created_at TIMESTAMP WITH TIME ZONE, updated_at TIMESTAMP WITH TIME ZONE)
+LANGUAGE sql SECURITY DEFINER
+AS $$
+    SELECT p.id, p.project_id, p.plan_json, p.status, p.created_at, p.updated_at
+    FROM plans p
+    WHERE p.user_id = user_uuid;
+$$;
+
+CREATE OR REPLACE FUNCTION get_plan_messages(plan_uuid UUID)
+RETURNS TABLE(id UUID, user_question TEXT, node_path TEXT, selection_text TEXT, created_at TIMESTAMP WITH TIME ZONE)
+LANGUAGE sql SECURITY DEFINER
+AS $$
+    SELECT pm.id, pm.user_question, pm.node_path, pm.selection_text, pm.created_at
+    FROM plan_messages pm
+    WHERE pm.plan_id = plan_uuid;
+$$;
+
+-- Grant necessary permissions
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- Grant permissions to service role
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;

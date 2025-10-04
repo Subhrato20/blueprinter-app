@@ -1,26 +1,42 @@
 #!/bin/bash
 
-# Blueprinter Frontend Runner Script
-echo "🎨 Starting Blueprinter Frontend..."
+# Blueprint Snap Frontend Runner
+# Dev DNA Edition
 
-# Check if we're in the right directory
-if [ ! -d "frontend" ]; then
-    echo "❌ Error: Please run this script from the project root directory"
+set -e
+
+echo "🌐 Starting Blueprint Snap Frontend"
+echo "==================================="
+
+# Check if Node.js is available
+if ! command -v node &> /dev/null; then
+    echo "❌ Node.js is not installed"
     exit 1
 fi
 
-# Navigate to frontend directory
-cd frontend
-
-# Check if node_modules exists
-if [ ! -d "node_modules" ]; then
-    echo "📦 Installing dependencies..."
-    npm install
+# Check if npm is available
+if ! command -v npm &> /dev/null; then
+    echo "❌ npm is not installed"
+    exit 1
 fi
 
-# Start the development server
-echo "🌟 Starting Vite development server on http://localhost:5173"
-echo "🛑 Press Ctrl+C to stop the server"
-echo ""
+# Check if we're in the right directory
+if [ ! -d "frontend" ]; then
+    echo "❌ Frontend directory not found. Please run from project root."
+    exit 1
+fi
 
+echo "✅ Prerequisites check passed"
+
+# Install dependencies if needed
+if [ ! -d "frontend/node_modules" ]; then
+    echo "📦 Installing frontend dependencies..."
+    cd frontend
+    npm install
+    cd ..
+fi
+
+# Start frontend
+echo "🚀 Starting frontend server..."
+cd frontend
 npm run dev

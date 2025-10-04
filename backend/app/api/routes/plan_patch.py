@@ -1,27 +1,72 @@
-from fastapi import APIRouter, HTTPException
+"""Plan patch API endpoints."""
 
-from ...models import PlanPatchRequest, PlanJSON
-from ...supabase_client import SupabaseAdapter
-from ...utils.json_patch import apply_patch
+import structlog
+from fastapi import APIRouter, HTTPException, Depends
+from fastapi.security import HTTPBearer
 
+from app.models import PlanPatchRequest, ErrorResponse
+from app.utils.json_patch import apply_patch, validate_patch_operations
+from app.supabase_client import get_plan, update_plan, create_plan_revision
+
+logger = structlog.get_logger(__name__)
 router = APIRouter()
+security = HTTPBearer()
 
 
-@router.post("/plan/patch", response_model=PlanJSON)
-def patch_plan(req: PlanPatchRequest):
-    supa = SupabaseAdapter()
-    row = supa.fetch_plan(req.plan_id)
-    if not row or "plan_json" not in row:
-        raise HTTPException(status_code=404, detail="Plan not found")
+async def get_current_user_id(token: str = Depends(security)) -> str:
+    """Extract user ID from authentication token."""
+    # This is a simplified implementation
+    # In production, you would validate the JWT token and extract the user ID
+    return "user_123"  # Replace with actual user ID extraction
 
-    plan_json = row["plan_json"]
+
+@router.post("/plan/patch")
+async def apply_plan_patch(
+    request: PlanPatchRequest,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Apply a JSON patch to a plan."""
     try:
-        updated = apply_patch(plan_json, [op.model_dump() for op in req.patch], allowed_prefix=req.nodePath)
+        logger.info("Applying plan patch", plan_id=request.planId, operations_count=len(request.patch))
+        
+        # Validate patch operations
+        if not validate_patch_operations(request.patch):
+            raise HTTPException(status_code=400, detail="Invalid patch operations")
+        
+        # Get the current plan
+        plan = await get_plan(request.planId)
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        
+        # Store the original plan for revision tracking
+        original_plan_json = plan["plan_json"]
+        
+        # Apply the patch
+        updated_plan_json = apply_patch(original_plan_json, request.patch)
+        
+        # Update the plan in the database
+        success = await update_plan(request.planId, updated_plan_json)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update plan")
+        
+        # Create a revision record if messageId is provided
+        if request.messageId:
+            await create_plan_revision(
+                plan_id=request.planId,
+                message_id=request.messageId,
+                patch=request.patch
+            )
+        
+        logger.info("Plan patch applied successfully", plan_id=request.planId)
+        
+        return {
+            "success": True,
+            "planId": request.planId,
+            "updatedPlan": updated_plan_json
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    supa.update_plan(req.plan_id, updated)
-    supa.insert_revision(req.plan_id, [op.model_dump() for op in req.patch], rationale=None)
-    supa.broadcast_update(req.plan_id, {"type": "plan_updated", "plan": updated})
-    return updated
-
+        logger.error("Failed to apply plan patch", error=str(e))
+        raise HTTPException(status_code=500, detail="Internal server error")

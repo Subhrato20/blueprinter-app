@@ -1,36 +1,79 @@
+"""Blueprint Snap Backend - FastAPI application with LangGraph orchestration."""
+
 import os
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
+import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from .api.routes.plan import router as plan_router
-from .api.routes.ask import router as ask_router
-from .api.routes.plan_patch import router as patch_router
-from .api.routes.cursor_link import router as cursor_router
+from app.api.routes import ask, cursor_link, plan, plan_patch
+from app.supabase_client import get_supabase_client
 
-
-def get_cors_origins() -> list[str]:
-    raw = os.getenv("CORS_ORIGINS", "http://localhost:5173")
-    return [o.strip() for o in raw.split(",") if o.strip()]
+logger = structlog.get_logger(__name__)
 
 
-app = FastAPI(title="Blueprinter API", version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_cors_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Application lifespan manager."""
+    logger.info("Starting Blueprint Snap Backend")
+    
+    # Initialize Supabase client
+    await get_supabase_client()
+    
+    yield
+    
+    logger.info("Shutting down Blueprint Snap Backend")
 
 
-app.include_router(plan_router, prefix="/api")
-app.include_router(ask_router, prefix="/api")
-app.include_router(patch_router, prefix="/api")
-app.include_router(cursor_router, prefix="/api")
+def create_app() -> FastAPI:
+    """Create and configure FastAPI application."""
+    app = FastAPI(
+        title="Blueprint Snap API",
+        description="Dev DNA Edition: One-line idea → Plan JSON + style-adapted scaffolds + Ask-Copilot + Cursor deep link",
+        version="1.0.0",
+        lifespan=lifespan,
+    )
 
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend URLs
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Trusted host middleware
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=["localhost", "127.0.0.1", "*.localhost"],
+    )
+
+    # Include routers
+    app.include_router(plan.router, prefix="/api", tags=["plan"])
+    app.include_router(ask.router, prefix="/api", tags=["ask"])
+    app.include_router(plan_patch.router, prefix="/api", tags=["plan-patch"])
+    app.include_router(cursor_link.router, prefix="/api", tags=["cursor-link"])
+
+    @app.get("/health")
+    async def health_check():
+        """Health check endpoint."""
+        return {"status": "healthy", "service": "blueprint-snap-backend"}
+
+    return app
+
+
+app = create_app()
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=os.getenv("DEBUG", "false").lower() == "true",
+    )

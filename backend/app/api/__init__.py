@@ -1,1 +1,1 @@
-# Subpackage init
+# API package
