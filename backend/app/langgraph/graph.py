@@ -1,8 +1,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Any
+import os
 
 from ..models import PlanJSON, PlanStep, PlanFile, StyleTokens
+from ..openai_client import OpenAIClient
 
 
 @dataclass
@@ -77,8 +79,16 @@ def plan_builder(intent: Intent, pattern: Dict[str, Any], style: StyleTokens) ->
 
 
 class PlanGraph:
+    def __init__(self):
+        self.openai_client = OpenAIClient() if os.getenv("OPENAI_API_KEY") else None
+    
     def run(self, idea: str, style: StyleTokens, pattern_slug: str | None) -> PlanJSON:
-        intent = intent_parser(idea)
-        pattern = pattern_loader(pattern_slug)
-        return plan_builder(intent, pattern, style)
+        # Use OpenAI if API key is available, otherwise fallback to deterministic
+        if self.openai_client:
+            return self.openai_client.generate_plan(idea, style, pattern_slug)
+        else:
+            # Fallback to original deterministic logic
+            intent = intent_parser(idea)
+            pattern = pattern_loader(pattern_slug)
+            return plan_builder(intent, pattern, style)
 
