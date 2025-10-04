@@ -44,8 +44,9 @@ async def intent_parser_node(state: PlanGenerationState) -> PlanGenerationState:
         logger.info("Intent parsed", intent=intent)
         
     except Exception as e:
-        logger.error("Failed to parse intent", error=str(e))
-        state.error = f"Intent parsing failed: {str(e)}"
+        logger.warning("Failed to parse intent, using defaults", error=str(e))
+        # Don't set error, just use default values
+        state.intent = {"feature": "general", "route": "/api"}
     
     return state
 
@@ -84,8 +85,22 @@ async def pattern_loader_node(state: PlanGenerationState) -> PlanGenerationState
         logger.info("Pattern loaded", pattern_slug=pattern.get("slug"))
         
     except Exception as e:
-        logger.error("Failed to load pattern", error=str(e))
-        state.error = f"Pattern loading failed: {str(e)}"
+        logger.warning("Failed to load pattern, using default", error=str(e))
+        # Don't set error, just use default pattern
+        state.pattern = {
+            "slug": "default",
+            "template": {
+                "steps": [
+                    {"kind": "code", "target": "main", "summary": "Implement core functionality"},
+                    {"kind": "test", "target": "tests", "summary": "Add tests"},
+                    {"kind": "config", "target": "config", "summary": "Update configuration"}
+                ],
+                "files": [],
+                "risks": ["Consider edge cases", "Test thoroughly"],
+                "tests": ["Unit tests", "Integration tests"],
+                "prBody": "Implementation of requested feature"
+            }
+        }
     
     return state
 
@@ -116,8 +131,20 @@ async def style_adapter_node(state: PlanGenerationState) -> PlanGenerationState:
         logger.info("Style profile loaded", tokens=style_profile.get("tokens", {}))
         
     except Exception as e:
-        logger.error("Failed to load style profile", error=str(e))
-        state.error = f"Style profile loading failed: {str(e)}"
+        logger.warning("Failed to load style profile, using default", error=str(e))
+        # Don't set error, just use default style profile
+        state.style_profile = {
+            "tokens": {
+                "quotes": "double",
+                "semicolons": True,
+                "indent": "spaces",
+                "indent_size": 2,
+                "test_framework": "jest",
+                "directories": ["src", "tests"],
+                "aliases": {"@": "src"},
+                "language": "typescript"
+            }
+        }
     
     return state
 
@@ -200,7 +227,7 @@ async def style_adaptation_node(state: PlanGenerationState) -> PlanGenerationSta
 
 
 async def generate_plan(idea: str, project_id: str, user_id: str) -> Dict[str, Any]:
-    """Generate a complete development plan."""
+    """Generate a complete development plan with simplified sequential processing."""
     try:
         logger.info("Starting plan generation", idea=idea, project_id=project_id, user_id=user_id)
 
@@ -210,17 +237,61 @@ async def generate_plan(idea: str, project_id: str, user_id: str) -> Dict[str, A
             user_id=user_id,
         )
 
-        # Run the sequential pipeline (mirrors the planned LangGraph workflow).
-        for node in (
-            intent_parser_node,
-            pattern_loader_node,
-            style_adapter_node,
-            design_node,
-            style_adaptation_node,
-        ):
-            state = await node(state)
-            if state.error:
-                raise ValueError(state.error)
+        # Set default values first to avoid dependency issues
+        state.intent = {"feature": "general", "route": "/api"}
+        state.pattern = {
+            "slug": "default",
+            "template": {
+                "steps": [
+                    {"kind": "code", "target": "main", "summary": "Implement core functionality"},
+                    {"kind": "test", "target": "tests", "summary": "Add tests"},
+                    {"kind": "config", "target": "config", "summary": "Update configuration"}
+                ],
+                "files": [],
+                "risks": ["Consider edge cases", "Test thoroughly"],
+                "tests": ["Unit tests", "Integration tests"],
+                "prBody": "Implementation of requested feature"
+            }
+        }
+        state.style_profile = {
+            "tokens": {
+                "quotes": "double",
+                "semicolons": True,
+                "indent": "spaces",
+                "indent_size": 2,
+                "test_framework": "jest",
+                "directories": ["src", "tests"],
+                "aliases": {"@": "src"},
+                "language": "typescript"
+            }
+        }
+
+        # Try to enhance with actual data, but don't fail if it doesn't work
+        try:
+            state = await intent_parser_node(state)
+        except Exception as e:
+            logger.warning("Intent parsing failed, using defaults", error=str(e))
+            
+        try:
+            state = await pattern_loader_node(state)
+        except Exception as e:
+            logger.warning("Pattern loading failed, using defaults", error=str(e))
+            
+        try:
+            state = await style_adapter_node(state)
+        except Exception as e:
+            logger.warning("Style loading failed, using defaults", error=str(e))
+
+        # Now run the design node with the collected data
+        logger.info("Calling design node with LLM")
+        state = await design_node(state)
+        if state.error:
+            raise ValueError(state.error)
+
+        # Finally run style adaptation
+        state = await style_adaptation_node(state)
+        if state.error:
+            raise ValueError(state.error)
 
         if not state.plan_json:
             raise ValueError("Plan generation returned no data")

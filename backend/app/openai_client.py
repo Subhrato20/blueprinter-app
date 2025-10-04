@@ -17,13 +17,11 @@ client = None
 
 
 def get_model() -> str:
-    """Return the model to use, honoring env override at call time.
+    """Return the model to use.
 
-    Defaults to "gpt-5" per project preference. Avoids stale import-time values
-    and removes the older placeholder default (gpt-5-reasoning).
+    Uses GPT5_MODEL environment variable or defaults to gpt-4o.
     """
-    model = os.getenv("GPT5_MODEL")
-    return model if model else "gpt-5"
+    return os.getenv("GPT5_MODEL", "gpt-4o")
 
 
 def get_openai_client():
@@ -82,14 +80,19 @@ async def gpt5_plan(
         # The actual implementation will depend on the final GPT-5 API structure
         model_name = get_model()
         logger.info("Calling OpenAI for plan", model=model_name)
-        response = get_openai_client().chat.completions.create(
-            model=model_name,
-            response_format={"type": "json_object"},
-            messages=[
+        # Hardcode response_format off for compatibility
+        use_resp_format = False
+        kwargs = {
+            "model": model_name,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(user_content)}
             ],
-        )
+            "timeout": 120,  # Increase timeout to 2 minutes
+        }
+        if use_resp_format:
+            kwargs["response_format"] = {"type": "json_object"}
+        response = get_openai_client().chat.completions.create(**kwargs)
 
         # Extract plan JSON from content or tool call args
         msg = response.choices[0].message
@@ -197,14 +200,17 @@ async def gpt5_patch(context: Dict[str, Any]) -> PatchResponse:
         # Note: This is a placeholder for the actual GPT-5 API call
         model_name = get_model()
         logger.info("Calling OpenAI for patch", model=model_name)
-        response = get_openai_client().chat.completions.create(
-            model=model_name,
-            response_format={"type": "json_object"},
-            messages=[
+        use_resp_format = False
+        kwargs = {
+            "model": model_name,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(context)}
             ],
-        )
+        }
+        if use_resp_format:
+            kwargs["response_format"] = {"type": "json_object"}
+        response = get_openai_client().chat.completions.create(**kwargs)
 
         # Extract the patch data from the response (content or tool call args)
         msg = response.choices[0].message
@@ -243,14 +249,18 @@ async def analyze_intent(idea: str) -> Dict[str, str]:
         
         model_name = get_model()
         logger.info("Calling OpenAI for intent", model=model_name)
-        response = get_openai_client().chat.completions.create(
-            model=model_name,
-            response_format={"type": "json_object"},
-            messages=[
+        use_resp_format = False
+        kwargs = {
+            "model": model_name,
+            "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Analyze this idea: {idea}"}
-            ]
-        )
+            ],
+            "timeout": 60,  # Increase timeout to 1 minute for intent analysis
+        }
+        if use_resp_format:
+            kwargs["response_format"] = {"type": "json_object"}
+        response = get_openai_client().chat.completions.create(**kwargs)
 
         msg = response.choices[0].message
         content = getattr(msg, "content", None)

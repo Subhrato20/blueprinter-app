@@ -17,10 +17,10 @@ async def get_supabase_client() -> Client:
     
     if _supabase_client is None:
         url = os.getenv("SUPABASE_URL")
-        anon_key = os.getenv("SUPABASE_ANON_KEY")
+        anon_key = os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
         
         if not url or not anon_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set")
+            raise ValueError("SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set")
         
         _supabase_client = create_client(url, anon_key)
         logger.info("Supabase client initialized")
@@ -31,13 +31,24 @@ async def get_supabase_client() -> Client:
 async def get_style_profile(user_id: str) -> Optional[Dict[str, Any]]:
     """Get user's style profile."""
     try:
+        import asyncio
         client = await get_supabase_client()
-        result = client.table("style_profiles").select("*").eq("user_id", user_id).execute()
+        
+        # Add timeout to prevent hanging
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: client.table("style_profiles").select("*").eq("user_id", user_id).execute()
+            ),
+            timeout=10.0  # 10 second timeout
+        )
         
         if result.data:
             return result.data[0]
         return None
         
+    except asyncio.TimeoutError:
+        logger.warning("Style profile query timed out", user_id=user_id)
+        return None
     except Exception as e:
         logger.error("Failed to get style profile", user_id=user_id, error=str(e))
         return None
@@ -46,13 +57,24 @@ async def get_style_profile(user_id: str) -> Optional[Dict[str, Any]]:
 async def get_pattern(slug: str) -> Optional[Dict[str, Any]]:
     """Get development pattern by slug."""
     try:
+        import asyncio
         client = await get_supabase_client()
-        result = client.table("patterns").select("*").eq("slug", slug).execute()
+        
+        # Add timeout to prevent hanging
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: client.table("patterns").select("*").eq("slug", slug).execute()
+            ),
+            timeout=10.0  # 10 second timeout
+        )
         
         if result.data:
             return result.data[0]
         return None
         
+    except asyncio.TimeoutError:
+        logger.warning("Pattern query timed out", slug=slug)
+        return None
     except Exception as e:
         logger.error("Failed to get pattern", slug=slug, error=str(e))
         return None
