@@ -88,16 +88,21 @@ async function decodeAndVerifyPayload(data: string, signature: string): Promise<
     const payloadJson = Buffer.from(paddedData, 'base64url').toString('utf-8');
     const payload: CursorPayload = JSON.parse(payloadJson);
 
-    // Verify signature
+    // Verify signature using the same format as backend (sorted keys, compact separators)
+    const normalizedJson = JSON.stringify(payload, Object.keys(payload).sort());
     const expectedSignature = crypto
       .createHmac('sha256', secret)
-      .update(payloadJson)
+      .update(normalizedJson)
       .digest('base64url')
       .replace(/=/g, '');
 
+    // Add padding for comparison
+    const sigPadded = signature + '='.repeat((4 - signature.length % 4) % 4);
+    const expectedPadded = expectedSignature + '='.repeat((4 - expectedSignature.length % 4) % 4);
+
     if (!crypto.timingSafeEqual(
-      Buffer.from(signature, 'base64url'),
-      Buffer.from(expectedSignature, 'base64url')
+      Buffer.from(sigPadded, 'base64url'),
+      Buffer.from(expectedPadded, 'base64url')
     )) {
       throw new Error('Invalid signature');
     }
