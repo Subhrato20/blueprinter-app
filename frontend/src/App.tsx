@@ -2,13 +2,16 @@ import React, { useState } from 'react'
 import { planApi, downloadZip, ApiError, askApi, patchApi, cursorApi } from './services/api'
 import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
+import { ToastContainer } from './components/Toast'
 import CodingPreferencesManager from './components/CodingPreferencesManager'
 import type { PlanJSON, SelectionState, PatchPreview } from './types'
 import { 
   Download, 
   Copy, 
   Sparkles,
-  Settings
+  Settings,
+  Zap,
+  XCircle
 } from 'lucide-react'
 
 function App() {
@@ -25,6 +28,16 @@ function App() {
   })
   const [patchPreview, setPatchPreview] = useState<PatchPreview | null>(null)
   const [showPreferences, setShowPreferences] = useState(false)
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: 'success' | 'error' | 'info' }>>([])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substring(7)
+    setToasts((prev) => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((toast) => toast.id !== id))
+  }
 
   const handleGeneratePlan = async () => {
     if (!idea.trim()) return
@@ -76,8 +89,7 @@ function App() {
       
       // Show success message
       setError(null)
-      // You could add a toast notification here instead
-      alert('Cursor link copied to clipboard!')
+      addToast('Cursor link copied to clipboard!', 'success')
     } catch (error: any) {
       const message = error?.detail || error?.message || 'Failed to create Cursor link'
       setError(message)
@@ -148,39 +160,44 @@ function App() {
   // No authentication needed - direct access
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="glass sticky top-0 z-40 border-b border-gray-200/50 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-8 w-8 text-primary-600" />
-                <h1 className="text-xl font-bold text-gray-900">Blueprint Snap</h1>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span>/</span>
-                <span>Personal Project</span>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-accent-500 blur-lg opacity-30 rounded-full"></div>
+                  <div className="relative bg-gradient-to-r from-primary-600 to-accent-600 p-2 rounded-xl">
+                    <Zap className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Blueprint Snap</h1>
+                  <p className="text-xs text-gray-500">Dev DNA Edition</p>
+                </div>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowPreferences(!showPreferences)}
                 className="btn-outline flex items-center gap-2"
               >
                 <Settings className="h-4 w-4" />
-                Coding Preferences
+                <span className="hidden sm:inline">Preferences</span>
               </button>
               <button
                 onClick={() => {
                   setCurrentPlan(null)
                   setCurrentPlanId(null)
                   setIdea('')
+                  addToast('Ready to create a new plan!', 'info')
                 }}
-                className="btn-outline flex items-center gap-2"
+                className="btn-primary flex items-center gap-2"
               >
                 <Sparkles className="h-4 w-4" />
-                New Plan
+                <span className="hidden sm:inline">New Plan</span>
               </button>
             </div>
           </div>
@@ -189,87 +206,116 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800">{error}</p>
-            <button 
-              onClick={() => setError(null)}
-              className="mt-2 text-sm text-red-600 hover:text-red-800"
-            >
-              Dismiss
-            </button>
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg shadow-soft animate-slide-down">
+            <div className="flex items-start gap-3">
+              <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-red-800 font-medium">{error}</p>
+                <button 
+                  onClick={() => setError(null)}
+                  className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
         {showPreferences ? (
           <CodingPreferencesManager />
         ) : !currentPlan ? (
-          <div className="max-w-2xl mx-auto">
-            <div className="card">
-              <div className="card-header">
-                <h2 className="text-xl font-semibold">Generate a Development Plan</h2>
-                <p className="text-gray-600">
-                  Describe your idea in one line and get a complete development plan with files, tests, and implementation steps.
-                </p>
+          <div className="max-w-3xl mx-auto">
+            <div className="text-center mb-8 animate-fade-in">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 mb-4">
+                <Sparkles className="h-8 w-8 text-white" />
               </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">Create Your Development Plan</h2>
+              <p className="text-lg text-gray-600">
+                Describe your idea and get a complete plan with files, tests, and implementation steps.
+              </p>
+            </div>
+            <div className="card animate-scale-up">
               <div className="card-content">
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <label htmlFor="idea" className="block text-sm font-medium text-gray-700 mb-2">
-                      Your Idea
+                    <label htmlFor="idea" className="block text-sm font-semibold text-gray-700 mb-3">
+                      💡 What would you like to build?
                     </label>
                     <textarea
                       id="idea"
                       value={idea}
                       onChange={(e) => setIdea(e.target.value)}
-                      placeholder="e.g., Add user search with pagination to the admin panel"
-                      className="textarea w-full"
-                      rows={3}
+                      placeholder="e.g., Build a user authentication system with email verification and password reset"
+                      className="textarea w-full text-base"
+                      rows={4}
                     />
                   </div>
                   <button
                     onClick={handleGeneratePlan}
                     disabled={!idea.trim() || isLoading}
-                    className="w-full btn-primary py-3 flex items-center justify-center gap-2"
+                    className="w-full btn-primary py-4 flex items-center justify-center gap-3 text-base"
                   >
                     {isLoading ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Generating Plan...
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Generating your plan...</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="h-5 w-5" />
-                        Generate Plan
+                        <span>Generate Development Plan</span>
                       </>
                     )}
                   </button>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-gray-200">
+                    <div className="text-center p-3">
+                      <div className="text-2xl mb-1">📝</div>
+                      <div className="text-sm font-medium text-gray-900">Step-by-Step</div>
+                      <div className="text-xs text-gray-500">Clear implementation steps</div>
+                    </div>
+                    <div className="text-center p-3">
+                      <div className="text-2xl mb-1">📁</div>
+                      <div className="text-sm font-medium text-gray-900">File Structure</div>
+                      <div className="text-xs text-gray-500">Complete file templates</div>
+                    </div>
+                    <div className="text-center p-3">
+                      <div className="text-2xl mb-1">🧪</div>
+                      <div className="text-sm font-medium text-gray-900">Test Coverage</div>
+                      <div className="text-xs text-gray-500">Comprehensive testing</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-fade-in">
             {/* Plan Actions */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{currentPlan.title}</h2>
-                <p className="text-gray-600">Generated development plan</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleDownloadZip}
-                  className="btn-outline flex items-center gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Download ZIP
-                </button>
-                <button
-                  onClick={handleCopyCursorLink}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy Cursor Link
-                </button>
+            <div className="card">
+              <div className="card-content">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent mb-1">{currentPlan.title}</h2>
+                    <p className="text-gray-600">✨ Your development plan is ready!</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleDownloadZip}
+                      className="btn-outline flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Download ZIP</span>
+                    </button>
+                    <button
+                      onClick={handleCopyCursorLink}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      <span className="hidden sm:inline">Copy Link</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -282,6 +328,9 @@ function App() {
           </div>
         )}
       </main>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
 
       {/* Ask Copilot Modal */}
       {showAskModal && (

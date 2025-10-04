@@ -5,10 +5,11 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    @apply antialiased;
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    @apply bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 text-gray-900 min-h-screen;
   }
   
   code {
@@ -18,62 +19,138 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none px-4 py-2 shadow-sm hover:shadow-md active:scale-[0.98];
   }
   
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700;
+    @apply btn bg-gradient-to-r from-primary-600 to-primary-700 text-white hover:from-primary-700 hover:to-primary-800 shadow-primary-500/20;
   }
   
   .btn-secondary {
-    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300;
+    @apply btn bg-gradient-to-r from-gray-100 to-gray-200 text-gray-900 hover:from-gray-200 hover:to-gray-300;
   }
   
   .btn-outline {
-    @apply btn border border-gray-300 bg-white hover:bg-gray-50;
+    @apply btn border-2 border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400;
+  }
+  
+  .btn-success {
+    @apply btn bg-gradient-to-r from-success-600 to-success-700 text-white hover:from-success-700 hover:to-success-800 shadow-success-500/20;
+  }
+  
+  .btn-accent {
+    @apply btn bg-gradient-to-r from-accent-600 to-accent-700 text-white hover:from-accent-700 hover:to-accent-800 shadow-accent-500/20;
   }
   
   .input {
-    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-10 w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-sm transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:border-primary-500 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 hover:border-gray-300;
   }
   
   .textarea {
-    @apply flex min-h-[80px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex min-h-[80px] w-full rounded-lg border-2 border-gray-200 bg-white px-3 py-2 text-sm transition-all placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:border-primary-500 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 hover:border-gray-300;
   }
   
   .card {
-    @apply rounded-lg border border-gray-200 bg-white shadow-sm;
+    @apply rounded-xl border border-gray-200 bg-white shadow-soft hover:shadow-medium transition-shadow duration-300 overflow-hidden backdrop-blur-sm;
   }
   
   .card-header {
-    @apply flex flex-col space-y-1.5 p-6;
+    @apply flex flex-col space-y-1.5 p-6 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white;
   }
   
   .card-content {
-    @apply p-6 pt-0;
+    @apply p-6;
   }
   
   .badge {
-    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
   }
   
   .badge-default {
-    @apply badge border-transparent bg-gray-100 text-gray-900;
+    @apply badge border-transparent bg-gray-100 text-gray-700 hover:bg-gray-200;
   }
   
   .badge-primary {
-    @apply badge border-transparent bg-primary-100 text-primary-800;
+    @apply badge border-transparent bg-primary-100 text-primary-700 hover:bg-primary-200;
   }
   
   .badge-success {
-    @apply badge border-transparent bg-green-100 text-green-800;
+    @apply badge border-transparent bg-success-100 text-success-700 hover:bg-success-200;
   }
   
   .badge-warning {
-    @apply badge border-transparent bg-yellow-100 text-yellow-800;
+    @apply badge border-transparent bg-yellow-100 text-yellow-700 hover:bg-yellow-200;
   }
   
   .badge-error {
-    @apply badge border-transparent bg-red-100 text-red-800;
+    @apply badge border-transparent bg-red-100 text-red-700 hover:bg-red-200;
+  }
+  
+  .badge-accent {
+    @apply badge border-transparent bg-accent-100 text-accent-700 hover:bg-accent-200;
+  }
+  
+  /* Toast Notifications */
+  .toast {
+    @apply fixed bottom-4 right-4 z-50 animate-slide-up;
+  }
+  
+  .toast-success {
+    @apply toast bg-white border-l-4 border-success-500 rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md;
+  }
+  
+  .toast-error {
+    @apply toast bg-white border-l-4 border-red-500 rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md;
+  }
+  
+  .toast-info {
+    @apply toast bg-white border-l-4 border-primary-500 rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md;
+  }
+  
+  /* Loading States */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+  
+  .shimmer {
+    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent;
+  }
+  
+  /* Interactive Elements */
+  .interactive-card {
+    @apply card hover:scale-[1.02] cursor-pointer transition-transform duration-200;
+  }
+  
+  /* Gradients */
+  .gradient-primary {
+    @apply bg-gradient-to-r from-primary-500 to-primary-700;
+  }
+  
+  .gradient-accent {
+    @apply bg-gradient-to-r from-accent-500 to-accent-700;
+  }
+  
+  .gradient-success {
+    @apply bg-gradient-to-r from-success-500 to-success-700;
+  }
+  
+  /* Glass morphism effect */
+  .glass {
+    @apply backdrop-blur-md bg-white/80 border border-white/20;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }
