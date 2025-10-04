@@ -13,6 +13,8 @@ from ..dependencies import get_current_user
 from ...supabase_client import get_supabase_client
 from ...openai_client import get_openai_client
 
+# Real Supabase integration
+
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/coding-preferences", tags=["coding-preferences"])
 
@@ -96,22 +98,14 @@ async def create_coding_preference(
     try:
         user_id = current_user["id"]
         
-        # Generate embedding for the preference text
-        embedding = await generate_preference_embedding(
-            preference.preference_text, 
-            preference.context, 
-            openai
-        )
-        
-        # Insert preference into database
+        # Insert preference into database (without embedding for now)
         result = supabase.table("coding_preferences").insert({
             "user_id": user_id,
             "category": preference.category,
             "preference_text": preference.preference_text,
             "context": preference.context,
             "strength": preference.strength,
-            "metadata": preference.metadata,
-            "embedding": embedding
+            "metadata": preference.metadata
         }).execute()
         
         if not result.data:

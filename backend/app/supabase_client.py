@@ -17,12 +17,12 @@ async def get_supabase_client() -> Client:
     
     if _supabase_client is None:
         url = os.getenv("SUPABASE_URL")
-        service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+        anon_key = os.getenv("SUPABASE_ANON_KEY")
         
-        if not url or not service_key:
-            raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+        if not url or not anon_key:
+            raise ValueError("SUPABASE_URL and SUPABASE_ANON_KEY must be set")
         
-        _supabase_client = create_client(url, service_key)
+        _supabase_client = create_client(url, anon_key)
         logger.info("Supabase client initialized")
     
     return _supabase_client

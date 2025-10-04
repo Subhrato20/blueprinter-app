@@ -2,7 +2,7 @@
 
 from typing import Dict, Any
 import structlog
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from ..supabase_client import get_supabase_client
@@ -13,29 +13,14 @@ security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
     supabase=Depends(get_supabase_client)
 ) -> Dict[str, Any]:
-    """Get the current authenticated user from JWT token."""
-    try:
-        # Verify the JWT token with Supabase
-        response = supabase.auth.get_user(credentials.credentials)
-        
-        if not response.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
-            )
-        
-        return {
-            "id": response.user.id,
-            "email": response.user.email,
-            "user_metadata": response.user.user_metadata or {}
-        }
-        
-    except Exception as e:
-        logger.error("Failed to authenticate user", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials"
-        )
+    """Get the current user - simplified for single user setup."""
+    # For single user setup, we'll use a fixed user ID
+    # In a real multi-user app, you'd get this from authentication
+    return {
+        "id": "550e8400-e29b-41d4-a716-446655440000",  # Valid UUID
+        "email": "user@example.com",
+        "user_metadata": {}
+    }

@@ -10,6 +10,9 @@ from typing import AsyncGenerator
 
 import structlog
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
+from starlette import status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -24,8 +27,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager."""
     logger.info("Starting Blueprint Snap Backend")
     
-    # Initialize Supabase client
-    await get_supabase_client()
+    # Initialize Supabase client (best-effort in dev)
+    try:
+        await get_supabase_client()
+    except Exception as e:
+        # In local/dev environments, allow the app to run without Supabase
+        logger.warning("Supabase client initialization skipped", error=str(e))
     
     yield
     
@@ -44,7 +51,7 @@ def create_app() -> FastAPI:
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Frontend URLs
+        allow_origins=["http://localhost:5173", "http://localhost:5175", "http://localhost:3000"],  # Frontend URLs
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -67,6 +74,17 @@ def create_app() -> FastAPI:
     async def health_check():
         """Health check endpoint."""
         return {"status": "healthy", "service": "blueprint-snap-backend"}
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception):
+        """Return JSON for any unhandled exception, with details in DEBUG."""
+        logger.exception("Unhandled exception", error=str(exc))
+        debug = os.getenv("DEBUG", "false").lower() == "true"
+        detail = f"{type(exc).__name__}: {str(exc)}" if debug else "Internal server error"
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"error": "Internal Server Error", "detail": detail},
+        )
 
     return app
 

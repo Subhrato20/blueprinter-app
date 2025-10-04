@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { Plus, Edit, Trash2, Search, X, Check, AlertCircle } from 'lucide-react';
 
 // Types
 interface CodingPreference {
@@ -49,20 +49,18 @@ const CodingPreferencesManager: React.FC = () => {
   const [summary, setSummary] = useState<CodingStyleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<CodingPreference[]>([]);
+  const [editingPreference, setEditingPreference] = useState<CodingPreference | null>(null);
   const [newPreference, setNewPreference] = useState<NewPreference>({
     category: 'code_style',
     preference_text: '',
     context: '',
     strength: 'moderate'
   });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<CodingPreference[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
-  const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-  );
+  const API_BASE = 'http://localhost:8001/api/coding-preferences';
 
   useEffect(() => {
     loadPreferences();
@@ -72,26 +70,21 @@ const CodingPreferencesManager: React.FC = () => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        console.error('No active session');
-        return;
-      }
-
-      const response = await fetch('/api/coding-preferences/', {
+      const response = await fetch(`${API_BASE}/`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
         const data = await response.json();
         setPreferences(data);
+      } else {
+        console.error('Failed to load preferences');
       }
     } catch (error) {
-      console.error('Failed to load preferences:', error);
+      console.error('Error loading preferences:', error);
     } finally {
       setLoading(false);
     }
@@ -99,15 +92,11 @@ const CodingPreferencesManager: React.FC = () => {
 
   const loadSummary = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) return;
-
-      const response = await fetch('/api/coding-preferences/summary', {
+      const response = await fetch(`${API_BASE}/summary`, {
+        method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       if (response.ok) {
@@ -115,30 +104,28 @@ const CodingPreferencesManager: React.FC = () => {
         setSummary(data);
       }
     } catch (error) {
-      console.error('Failed to load summary:', error);
+      console.error('Error loading summary:', error);
     }
   };
 
   const handleAddPreference = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    console.log('Form submitted with data:', newPreference);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) return;
-
-      const response = await fetch('/api/coding-preferences/', {
+      const response = await fetch(`${API_BASE}/`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newPreference)
+        body: JSON.stringify(newPreference),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (response.ok) {
-        await loadPreferences();
-        await loadSummary();
+        const data = await response.json();
+        console.log('Successfully added preference:', data);
         setNewPreference({
           category: 'code_style',
           preference_text: '',
@@ -146,9 +133,44 @@ const CodingPreferencesManager: React.FC = () => {
           strength: 'moderate'
         });
         setShowAddForm(false);
+        await loadPreferences();
+        await loadSummary();
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to add preference:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Failed to add preference:', error);
+      console.error('Error adding preference:', error);
+    }
+  };
+
+  const handleUpdatePreference = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPreference) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/${editingPreference.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          category: editingPreference.category,
+          preference_text: editingPreference.preference_text,
+          context: editingPreference.context,
+          strength: editingPreference.strength
+        }),
+      });
+
+      if (response.ok) {
+        setEditingPreference(null);
+        await loadPreferences();
+        await loadSummary();
+      } else {
+        console.error('Failed to update preference');
+      }
+    } catch (error) {
+      console.error('Error updating preference:', error);
     }
   };
 
@@ -156,63 +178,43 @@ const CodingPreferencesManager: React.FC = () => {
     if (!confirm('Are you sure you want to delete this preference?')) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) return;
-
-      const response = await fetch(`/api/coding-preferences/${id}`, {
+      const response = await fetch(`${API_BASE}/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
       });
 
       if (response.ok) {
         await loadPreferences();
         await loadSummary();
+      } else {
+        console.error('Failed to delete preference');
       }
     } catch (error) {
-      console.error('Failed to delete preference:', error);
+      console.error('Error deleting preference:', error);
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
+  const handleSearchSimilarPreferences = async () => {
+    if (!searchQuery.trim()) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) return;
-
-      const response = await fetch('/api/coding-preferences/search', {
+      const response = await fetch(`${API_BASE}/search`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          query_text: searchQuery,
-          similarity_threshold: 0.7,
-          max_results: 10
-        })
+        body: JSON.stringify({ query: searchQuery }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data.preferences);
+        setSearchResults(data);
+        setShowSearchResults(true);
+      } else {
+        console.error('Failed to search preferences');
       }
     } catch (error) {
-      console.error('Failed to search preferences:', error);
+      console.error('Error searching preferences:', error);
     }
-  };
-
-  const getStrengthColor = (strength: string) => {
-    const strengthConfig = STRENGTHS.find(s => s.value === strength);
-    return strengthConfig?.color || 'text-gray-500';
   };
 
   const formatCategory = (category: string) => {
@@ -232,11 +234,15 @@ const CodingPreferencesManager: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Coding Preferences</h1>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Coding Preferences</h1>
+          <p className="text-gray-600">Manage your coding style and preferences</p>
+        </div>
         <button
           onClick={() => setShowAddForm(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
+          <Plus className="h-4 w-4" />
           Add Preference
         </button>
       </div>
@@ -247,175 +253,313 @@ const CodingPreferencesManager: React.FC = () => {
           <div key={item.category} className="bg-white p-4 rounded-lg shadow border">
             <h3 className="font-semibold text-gray-900">{formatCategory(item.category)}</h3>
             <p className="text-2xl font-bold text-blue-600">{item.preference_count}</p>
-            <div className="mt-2 space-y-1">
-              {item.top_preferences.slice(0, 2).map((pref, idx) => (
-                <p key={idx} className="text-sm text-gray-600 truncate">{pref}</p>
-              ))}
-            </div>
+            <p className="text-sm text-gray-600">preferences</p>
           </div>
         ))}
       </div>
 
       {/* Search */}
       <div className="bg-white p-4 rounded-lg shadow border">
-        <h2 className="text-xl font-semibold mb-4">Search Preferences</h2>
+        <h3 className="font-semibold text-gray-900 mb-3">Search Similar Preferences</h3>
         <div className="flex gap-2">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search for similar preferences..."
+            placeholder="Describe what you're looking for..."
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
-            onClick={handleSearch}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            onClick={handleSearchSimilarPreferences}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
+            <Search className="h-4 w-4" />
             Search
           </button>
         </div>
-        
-        {searchResults.length > 0 && (
-          <div className="mt-4">
-            <h3 className="font-semibold mb-2">Search Results:</h3>
+      </div>
+
+      {/* Search Results */}
+      {showSearchResults && (
+        <div className="bg-white p-4 rounded-lg shadow border">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold text-gray-900">Search Results</h3>
+            <button
+              onClick={() => setShowSearchResults(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {searchResults.length > 0 ? (
             <div className="space-y-2">
               {searchResults.map((pref) => (
                 <div key={pref.id} className="p-3 bg-gray-50 rounded-lg">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium">{pref.preference_text}</p>
-                      {pref.context && <p className="text-sm text-gray-600">{pref.context}</p>}
+                      <span className="text-sm font-medium text-blue-600">
+                        {formatCategory(pref.category)}
+                      </span>
+                      <p className="text-gray-900">{pref.preference_text}</p>
+                      {pref.context && (
+                        <p className="text-sm text-gray-600">{pref.context}</p>
+                      )}
                     </div>
-                    <span className={`text-sm font-medium ${getStrengthColor(pref.strength)}`}>
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      pref.strength === 'weak' ? 'bg-gray-100 text-gray-600' :
+                      pref.strength === 'moderate' ? 'bg-yellow-100 text-yellow-600' :
+                      pref.strength === 'strong' ? 'bg-orange-100 text-orange-600' :
+                      'bg-red-100 text-red-600'
+                    }`}>
                       {pref.strength}
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <p className="text-gray-500">No similar preferences found.</p>
+          )}
+        </div>
+      )}
 
-      {/* Add Form Modal */}
+      {/* Add Form */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4">Add Coding Preference</h2>
-            <form onSubmit={handleAddPreference} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <select
-                  value={newPreference.category}
-                  onChange={(e) => setNewPreference({...newPreference, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{formatCategory(cat)}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Preference Text
-                </label>
-                <input
-                  type="text"
-                  value={newPreference.preference_text}
-                  onChange={(e) => setNewPreference({...newPreference, preference_text: e.target.value})}
-                  placeholder="e.g., Use TypeScript for all frontend code"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Context (Optional)
-                </label>
-                <textarea
-                  value={newPreference.context}
-                  onChange={(e) => setNewPreference({...newPreference, context: e.target.value})}
-                  placeholder="Additional context about when this preference applies..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Strength
-                </label>
-                <select
-                  value={newPreference.strength}
-                  onChange={(e) => setNewPreference({...newPreference, strength: e.target.value as any})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {STRENGTHS.map(strength => (
-                    <option key={strength.value} value={strength.value}>{strength.label}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="flex gap-2 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Add Preference
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Add New Preference</h3>
+            <button
+              onClick={() => setShowAddForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
+          <form onSubmit={handleAddPreference} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={newPreference.category}
+                onChange={(e) => setNewPreference({...newPreference, category: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{formatCategory(cat)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Preference
+              </label>
+              <textarea
+                value={newPreference.preference_text}
+                onChange={(e) => setNewPreference({...newPreference, preference_text: e.target.value})}
+                placeholder="Describe your coding preference..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Context (optional)
+              </label>
+              <input
+                type="text"
+                value={newPreference.context}
+                onChange={(e) => setNewPreference({...newPreference, context: e.target.value})}
+                placeholder="When this applies..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Strength
+              </label>
+              <select
+                value={newPreference.strength}
+                onChange={(e) => setNewPreference({...newPreference, strength: e.target.value as any})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {STRENGTHS.map(strength => (
+                  <option key={strength.value} value={strength.value}>
+                    {strength.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Add Preference
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Form */}
+      {editingPreference && (
+        <div className="bg-white p-6 rounded-lg shadow border">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Edit Preference</h3>
+            <button
+              onClick={() => setEditingPreference(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <form onSubmit={handleUpdatePreference} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={editingPreference.category}
+                onChange={(e) => setEditingPreference({...editingPreference, category: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{formatCategory(cat)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Preference
+              </label>
+              <textarea
+                value={editingPreference.preference_text}
+                onChange={(e) => setEditingPreference({...editingPreference, preference_text: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Context (optional)
+              </label>
+              <input
+                type="text"
+                value={editingPreference.context || ''}
+                onChange={(e) => setEditingPreference({...editingPreference, context: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Strength
+              </label>
+              <select
+                value={editingPreference.strength}
+                onChange={(e) => setEditingPreference({...editingPreference, strength: e.target.value as any})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {STRENGTHS.map(strength => (
+                  <option key={strength.value} value={strength.value}>
+                    {strength.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
+                Update Preference
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingPreference(null)}
+                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
       {/* Preferences List */}
-      <div className="bg-white rounded-lg shadow border">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold">Your Coding Preferences</h2>
-        </div>
-        <div className="divide-y">
-          {preferences.map((pref) => (
-            <div key={pref.id} className="p-4">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                      {formatCategory(pref.category)}
-                    </span>
-                    <span className={`text-sm font-medium ${getStrengthColor(pref.strength)}`}>
-                      {pref.strength}
-                    </span>
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900">Your Preferences</h2>
+        {preferences.length === 0 ? (
+          <div className="bg-white p-8 rounded-lg shadow border text-center">
+            <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No preferences yet</h3>
+            <p className="text-gray-600 mb-4">Start building your coding profile by adding your first preference.</p>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Add Your First Preference
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {preferences.map((pref) => (
+              <div key={pref.id} className="bg-white p-4 rounded-lg shadow border">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                        {formatCategory(pref.category)}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        pref.strength === 'weak' ? 'bg-gray-100 text-gray-600' :
+                        pref.strength === 'moderate' ? 'bg-yellow-100 text-yellow-600' :
+                        pref.strength === 'strong' ? 'bg-orange-100 text-orange-600' :
+                        'bg-red-100 text-red-600'
+                      }`}>
+                        {pref.strength}
+                      </span>
+                    </div>
+                    <p className="text-gray-900 mb-2">{pref.preference_text}</p>
+                    {pref.context && (
+                      <p className="text-sm text-gray-600 mb-2">{pref.context}</p>
+                    )}
+                    <p className="text-xs text-gray-500">
+                      Added {new Date(pref.created_at).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="font-medium text-gray-900 mb-1">{pref.preference_text}</p>
-                  {pref.context && (
-                    <p className="text-sm text-gray-600 mb-2">{pref.context}</p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    Added {new Date(pref.created_at).toLocaleDateString()}
-                  </p>
+                  <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => setEditingPreference(pref)}
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="Edit"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePreference(pref.id)}
+                      className="text-red-600 hover:text-red-800 p-1"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDeletePreference(pref.id)}
-                  className="text-red-600 hover:text-red-800 text-sm font-medium"
-                >
-                  Delete
-                </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,8 @@ dependencies = [
     "httpx>=0.25.0",
     "python-dotenv>=1.0.0",
     "structlog>=23.2.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
@@ -37,7 +39,10 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["app*"]
+include = ["app*", "cli*"]
+
+[project.scripts]
+blueprinter = "cli.main:main"
 
 [tool.black]
 line-length = 88

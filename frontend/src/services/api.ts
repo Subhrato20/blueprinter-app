@@ -21,7 +21,7 @@ class ApiError extends Error {
 }
 
 async function apiRequest<T>(
-  endpoint: string, 
+  endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
@@ -39,19 +39,59 @@ async function apiRequest<T>(
   }
 
   try {
-    const response = await fetch(url, config)
+    // Add a longer timeout for plan generation (5 minutes)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000) // 5 minutes
+    
+    const response = await fetch(url, {
+      ...config,
+      signal: controller.signal
+    })
+    
+    clearTimeout(timeoutId)
     
     if (!response.ok) {
-      const errorData: Partial<ApiError> & { detail?: string; error?: string } = await response.json()
-      throw new ApiError(response.status, errorData.error, errorData.detail)
+      // Attempt to parse JSON error; fall back to text if empty/non-JSON
+      let message: string | undefined
+      let detail: string | undefined
+      try {
+        const raw = await response.text()
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as { detail?: string; error?: string; message?: string }
+            detail = parsed.detail || parsed.message
+            message = parsed.error || parsed.message || detail
+          } catch {
+            // Not JSON, use raw text
+            detail = raw
+            message = raw
+          }
+        }
+      } catch {
+        // Ignore body read errors; will use generic message
+      }
+      throw new ApiError(response.status, message, detail)
     }
 
-    return await response.json()
+    // Safely parse JSON on success; handle empty or non-JSON bodies
+    const bodyText = await response.text()
+    if (!bodyText || bodyText.trim().length === 0) {
+      throw new ApiError(response.status, 'Empty response', 'Server returned no content')
+    }
+    try {
+      return JSON.parse(bodyText) as T
+    } catch (e) {
+      throw new ApiError(response.status, 'Invalid JSON response', 'Server returned non-JSON content')
+    }
   } catch (error) {
     if (error instanceof ApiError) {
       throw error
     }
-    throw new ApiError(0, 'Network error', error.message)
+    if ((error as any).name === 'AbortError') {
+      throw new ApiError(0, 'Request timeout', 'The request took too long to complete')
+    }
+    const message = (error as any)?.message || 'Network error'
+    throw new ApiError(0, 'Network error', message)
   }
 }
 

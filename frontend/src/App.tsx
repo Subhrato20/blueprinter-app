@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { planApi, downloadZip, ApiError } from './services/api'
+import { planApi, downloadZip, ApiError, askApi, patchApi, cursorApi } from './services/api'
 import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
 import CodingPreferencesManager from './components/CodingPreferencesManager'
@@ -69,19 +69,7 @@ function App() {
     if (!currentPlanId) return
     
     try {
-      const response = await fetch('/api/cursor-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ planId: currentPlanId })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to generate cursor link')
-      }
-
-      const data = await response.json()
+      const data = await cursorApi.createLink(currentPlanId)
       
       // Copy to clipboard
       await navigator.clipboard.writeText(data.link)
@@ -90,8 +78,9 @@ function App() {
       setError(null)
       // You could add a toast notification here instead
       alert('Cursor link copied to clipboard!')
-    } catch (error) {
-      setError(error.message)
+    } catch (error: any) {
+      const message = error?.detail || error?.message || 'Failed to create Cursor link'
+      setError(message)
     }
   }
 
@@ -109,25 +98,12 @@ function App() {
 
     try {
       setIsLoading(true)
-      const response = await fetch('/api/ask', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
-        },
-        body: JSON.stringify({
-          planId: currentPlanId,
-          nodePath: selection.nodePath,
-          selectionText: selection.selectionText,
-          userQuestion: question
-        })
+      const patchResponse = await askApi.askCopilot({
+        planId: currentPlanId,
+        nodePath: selection.nodePath,
+        selectionText: selection.selectionText,
+        userQuestion: question
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to get copilot response')
-      }
-
-      const patchResponse = await response.json()
       
       // Create patch preview
       if (currentPlan) {
@@ -141,8 +117,9 @@ function App() {
           rationale: patchResponse.rationale
         })
       }
-    } catch (error) {
-      setError(error.message)
+    } catch (error: any) {
+      const message = error?.detail || error?.message || 'Failed to get copilot response'
+      setError(message)
     } finally {
       setIsLoading(false)
     }
@@ -153,28 +130,16 @@ function App() {
 
     try {
       setIsLoading(true)
-      const response = await fetch('/api/plan/patch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
-        },
-        body: JSON.stringify({
-          planId: currentPlanId,
-          patch: patchPreview.patch
-        })
+      const result = await patchApi.applyPatch({
+        planId: currentPlanId,
+        patch: patchPreview.patch
       })
-
-      if (!response.ok) {
-        throw new Error('Failed to apply patch')
-      }
-
-      const result = await response.json()
       setCurrentPlan(result.updatedPlan)
       setPatchPreview(null)
       setShowAskModal(false)
-    } catch (error) {
-      setError(error.message)
+    } catch (error: any) {
+      const message = error?.detail || error?.message || 'Failed to apply patch'
+      setError(message)
     } finally {
       setIsLoading(false)
     }
