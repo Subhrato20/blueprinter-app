@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any, List
 from openai import OpenAI
-from ..models import PlanJSON, PlanStep, PlanFile, StyleTokens
+from .models import PlanJSON, PlanStep, PlanFile, StyleTokens
 
 
 class OpenAIClient:

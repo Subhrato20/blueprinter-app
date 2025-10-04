@@ -1,0 +1,14 @@
+{
+  "name": "blueprinter",
+  "version": "0.1.0",
+  "description": "A webapp that converts a one-line feature idea into a deterministic plan, scaffold, and PR body in the developer's own code style.",
+  "scripts": {
+    "dev": "./run_all.sh",
+    "backend": "./run_backend.sh",
+    "frontend": "./run_frontend.sh",
+    "setup": "python3 setup_env.py"
+  },
+  "keywords": ["ai", "planning", "development", "gpt-5", "fastapi", "react"],
+  "author": "Subhrato",
+  "license": "MIT"
+}
