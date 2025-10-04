@@ -1,8 +1,7 @@
 """Plan generation API endpoints."""
 
 import structlog
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, HTTPException
 
 from app.models import PlanRequest, PlanResponse, ErrorResponse
 from app.langgraph.graph import generate_plan
@@ -10,22 +9,10 @@ from app.supabase_client import create_plan, log_dev_event
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
-security = HTTPBearer()
-
-
-async def get_current_user_id(token: str = Depends(security)) -> str:
-    """Extract user ID from authentication token."""
-    # This is a simplified implementation
-    # In production, you would validate the JWT token and extract the user ID
-    # For now, we'll use a placeholder
-    return "user_123"  # Replace with actual user ID extraction
 
 
 @router.post("/plan", response_model=PlanResponse)
-async def create_development_plan(
-    request: PlanRequest,
-    user_id: str = Depends(get_current_user_id)
-) -> PlanResponse:
+async def create_development_plan(request: PlanRequest) -> PlanResponse:
     """Generate a development plan from a one-line idea."""
     try:
         logger.info("Creating development plan", idea=request.idea, project_id=request.projectId)
@@ -40,14 +27,14 @@ async def create_development_plan(
         # Store the plan in the database
         plan_id = await create_plan(
             project_id=request.projectId,
-            user_id=user_id,
+            user_id="default-user",  # Use default user ID
             plan_json=plan_json
         )
         
         # Log the development event
         await log_dev_event(
             event_type="plan_created",
-            user_id=user_id,
+            user_id="default-user",
             project_id=request.projectId,
             metadata={"plan_id": plan_id, "idea": request.idea}
         )

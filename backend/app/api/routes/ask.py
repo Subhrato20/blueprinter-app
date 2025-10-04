@@ -1,8 +1,7 @@
 """Ask Copilot API endpoints."""
 
 import structlog
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, HTTPException
 
 from app.models import AskRequest, PatchResponse, ErrorResponse
 from app.openai_client import gpt5_patch
@@ -10,21 +9,10 @@ from app.supabase_client import get_plan, create_plan_message
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
-security = HTTPBearer()
-
-
-async def get_current_user_id(token: str = Depends(security)) -> str:
-    """Extract user ID from authentication token."""
-    # This is a simplified implementation
-    # In production, you would validate the JWT token and extract the user ID
-    return "user_123"  # Replace with actual user ID extraction
 
 
 @router.post("/ask", response_model=PatchResponse)
-async def ask_copilot(
-    request: AskRequest,
-    user_id: str = Depends(get_current_user_id)
-) -> PatchResponse:
+async def ask_copilot(request: AskRequest) -> PatchResponse:
     """Ask the copilot for suggestions about a specific part of the plan."""
     try:
         logger.info("Processing copilot request", plan_id=request.planId, node_path=request.nodePath)

@@ -71,7 +71,7 @@ echo "🚀 Starting services..."
 # Start backend in background
 echo "Starting backend server..."
 cd backend
-python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+source .venv/bin/activate && python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 cd ..
 

@@ -1,26 +1,15 @@
-import React, { useState, useEffect } from 'react'
-import { supabase, getCurrentUser } from './lib/supabase'
+import React, { useState } from 'react'
 import { planApi, downloadZip, openInCursor } from './services/api'
 import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
-import type { User, Project, PlanJSON, SelectionState, PatchPreview } from './types'
+import type { PlanJSON, SelectionState, PatchPreview } from './types'
 import { 
-  Plus, 
   Download, 
   ExternalLink, 
-  Github, 
-  LogOut, 
-  Settings,
-  Sparkles,
-  FileText,
-  Code,
-  TestTube,
-  Settings as ConfigIcon
+  Sparkles
 } from 'lucide-react'
 
 function App() {
-  const [user, setUser] = useState<User | null>(null)
-  const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [currentPlan, setCurrentPlan] = useState<PlanJSON | null>(null)
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -34,88 +23,8 @@ function App() {
   })
   const [patchPreview, setPatchPreview] = useState<PatchPreview | null>(null)
 
-  useEffect(() => {
-    // Check for existing session
-    getCurrentUser().then(({ user }) => {
-      if (user) {
-        setUser({
-          id: user.id,
-          email: user.email || '',
-          name: user.user_metadata?.full_name || user.user_metadata?.name
-        })
-      }
-    })
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name
-          })
-        } else {
-          setUser(null)
-          setCurrentProject(null)
-          setCurrentPlan(null)
-          setCurrentPlanId(null)
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const handleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      if (error) throw error
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const handleSignOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-    } catch (error) {
-      setError(error.message)
-    }
-  }
-
-  const handleCreateProject = async () => {
-    if (!user) return
-    
-    try {
-      setIsLoading(true)
-      const { data, error } = await supabase
-        .from('projects')
-        .insert({
-          name: 'New Project',
-          description: 'A new Blueprint Snap project',
-          owner: user.id
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      setCurrentProject(data)
-    } catch (error) {
-      setError(error.message)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleGeneratePlan = async () => {
-    if (!idea.trim() || !currentProject) return
+    if (!idea.trim()) return
 
     try {
       setIsLoading(true)
@@ -123,7 +32,7 @@ function App() {
 
       const response = await planApi.createPlan({
         idea: idea.trim(),
-        projectId: currentProject.id
+        projectId: 'default-project' // Use a default project ID
       })
 
       setCurrentPlan(response.plan)
@@ -241,35 +150,7 @@ function App() {
     }
   }
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
-        <div className="max-w-md w-full mx-4">
-          <div className="card">
-            <div className="card-header text-center">
-              <div className="flex items-center justify-center mb-4">
-                <Sparkles className="h-12 w-12 text-primary-600" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">Blueprint Snap</h1>
-              <p className="text-gray-600">Dev DNA Edition</p>
-              <p className="text-sm text-gray-500 mt-2">
-                One-line idea → Plan JSON + style-adapted scaffolds + Ask-Copilot + Cursor deep link
-              </p>
-            </div>
-            <div className="card-content">
-              <button
-                onClick={handleSignIn}
-                className="w-full btn-primary py-3 flex items-center justify-center gap-2"
-              >
-                <Github className="h-5 w-5" />
-                Sign in with GitHub
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  // No authentication needed - direct access
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,27 +163,22 @@ function App() {
                 <Sparkles className="h-8 w-8 text-primary-600" />
                 <h1 className="text-xl font-bold text-gray-900">Blueprint Snap</h1>
               </div>
-              {currentProject && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <span>/</span>
-                  <span>{currentProject.name}</span>
-                </div>
-              )}
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span>/</span>
+                <span>Personal Project</span>
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={handleCreateProject}
+                onClick={() => {
+                  setCurrentPlan(null)
+                  setCurrentPlanId(null)
+                  setIdea('')
+                }}
                 className="btn-outline flex items-center gap-2"
               >
-                <Plus className="h-4 w-4" />
-                New Project
-              </button>
-              <button
-                onClick={handleSignOut}
-                className="btn-outline flex items-center gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
+                <Sparkles className="h-4 w-4" />
+                New Plan
               </button>
             </div>
           </div>
@@ -313,23 +189,16 @@ function App() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
             <p className="text-red-800">{error}</p>
+            <button 
+              onClick={() => setError(null)}
+              className="mt-2 text-sm text-red-600 hover:text-red-800"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 
-        {!currentProject ? (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome to Blueprint Snap</h2>
-            <p className="text-gray-600 mb-8">Create a project to get started with AI-powered development planning.</p>
-            <button
-              onClick={handleCreateProject}
-              disabled={isLoading}
-              className="btn-primary py-3 px-6 flex items-center gap-2 mx-auto"
-            >
-              <Plus className="h-5 w-5" />
-              Create Your First Project
-            </button>
-          </div>
-        ) : !currentPlan ? (
+        {!currentPlan ? (
           <div className="max-w-2xl mx-auto">
             <div className="card">
               <div className="card-header">

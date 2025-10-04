@@ -29,12 +29,6 @@ async function apiRequest<T>(
     'Content-Type': 'application/json',
   }
 
-  // Add auth token if available
-  const token = localStorage.getItem('supabase.auth.token')
-  if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`
-  }
-
   const config: RequestInit = {
     ...options,
     headers: {

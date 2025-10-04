@@ -1,8 +1,7 @@
 """Plan patch API endpoints."""
 
 import structlog
-from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer
+from fastapi import APIRouter, HTTPException
 
 from app.models import PlanPatchRequest, ErrorResponse
 from app.utils.json_patch import apply_patch, validate_patch_operations
@@ -10,21 +9,10 @@ from app.supabase_client import get_plan, update_plan, create_plan_revision
 
 logger = structlog.get_logger(__name__)
 router = APIRouter()
-security = HTTPBearer()
-
-
-async def get_current_user_id(token: str = Depends(security)) -> str:
-    """Extract user ID from authentication token."""
-    # This is a simplified implementation
-    # In production, you would validate the JWT token and extract the user ID
-    return "user_123"  # Replace with actual user ID extraction
 
 
 @router.post("/plan/patch")
-async def apply_plan_patch(
-    request: PlanPatchRequest,
-    user_id: str = Depends(get_current_user_id)
-):
+async def apply_plan_patch(request: PlanPatchRequest):
     """Apply a JSON patch to a plan."""
     try:
         logger.info("Applying plan patch", plan_id=request.planId, operations_count=len(request.patch))
