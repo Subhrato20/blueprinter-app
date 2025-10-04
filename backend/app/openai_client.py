@@ -12,9 +12,29 @@ from app.models import PatchResponse, PlanJSON
 
 logger = structlog.get_logger(__name__)
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-MODEL = os.getenv("GPT5_MODEL", "gpt-5-reasoning")
+# OpenAI client will be initialized lazily
+client = None
+
+
+def get_model() -> str:
+    """Return the model to use, honoring env override at call time.
+
+    Defaults to "gpt-5" per project preference. Avoids stale import-time values
+    and removes the older placeholder default (gpt-5-reasoning).
+    """
+    model = os.getenv("GPT5_MODEL")
+    return model if model else "gpt-5"
+
+
+def get_openai_client():
+    """Get or create OpenAI client."""
+    global client
+    if client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is required")
+        client = OpenAI(api_key=api_key)
+    return client
 
 
 class PlanOut(BaseModel):
@@ -60,27 +80,31 @@ async def gpt5_plan(
         
         # Note: This is a placeholder for the actual GPT-5 API call
         # The actual implementation will depend on the final GPT-5 API structure
-        response = client.chat.completions.create(
-            model=MODEL,
-            temperature=0.2,
+        model_name = get_model()
+        logger.info("Calling OpenAI for plan", model=model_name)
+        response = get_openai_client().chat.completions.create(
+            model=model_name,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(user_content)}
             ],
-            tools=[{
-                "type": "function",
-                "function": {
-                    "name": "generate_plan",
-                    "description": "Generate a development plan",
-                    "parameters": tool_schema
-                }
-            }]
         )
-        
-        # Extract the plan data from the response
-        # This is a simplified version - actual implementation may vary
-        plan_data = json.loads(response.choices[0].message.content)
+
+        # Extract plan JSON from content or tool call args
+        msg = response.choices[0].message
+        content = getattr(msg, "content", None)
+        if not content:
+            tool_calls = getattr(msg, "tool_calls", None)
+            if tool_calls:
+                try:
+                    content = tool_calls[0].function.arguments
+                    logger.info("Parsed plan from tool call arguments")
+                except Exception:
+                    content = None
+        if not content:
+            raise ValueError("Model returned empty response content for plan")
+        plan_data = json.loads(content)
         
         # Convert to our PlanJSON model
         return PlanJSON(
@@ -109,26 +133,31 @@ async def gpt5_patch(context: Dict[str, Any]) -> PatchResponse:
         )
         
         # Note: This is a placeholder for the actual GPT-5 API call
-        response = client.chat.completions.create(
-            model=MODEL,
-            temperature=0.2,
+        model_name = get_model()
+        logger.info("Calling OpenAI for patch", model=model_name)
+        response = get_openai_client().chat.completions.create(
+            model=model_name,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(context)}
             ],
-            tools=[{
-                "type": "function",
-                "function": {
-                    "name": "generate_patch",
-                    "description": "Generate a JSON patch",
-                    "parameters": PatchOut.model_json_schema()
-                }
-            }]
         )
-        
-        # Extract the patch data from the response
-        patch_data = json.loads(response.choices[0].message.content)
+
+        # Extract the patch data from the response (content or tool call args)
+        msg = response.choices[0].message
+        content = getattr(msg, "content", None)
+        if not content:
+            tool_calls = getattr(msg, "tool_calls", None)
+            if tool_calls:
+                try:
+                    content = tool_calls[0].function.arguments
+                    logger.info("Parsed patch from tool call arguments")
+                except Exception:
+                    content = None
+        if not content:
+            raise ValueError("Model returned empty response content for patch")
+        patch_data = json.loads(content)
         
         return PatchResponse(
             rationale=patch_data["rationale"],
@@ -150,17 +179,30 @@ async def analyze_intent(idea: str) -> Dict[str, str]:
             "Be specific about the route path (e.g., '/users', '/api/products')."
         )
         
-        response = client.chat.completions.create(
-            model=MODEL,
-            temperature=0.1,
+        model_name = get_model()
+        logger.info("Calling OpenAI for intent", model=model_name)
+        response = get_openai_client().chat.completions.create(
+            model=model_name,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Analyze this idea: {idea}"}
             ]
         )
-        
-        return json.loads(response.choices[0].message.content)
+
+        msg = response.choices[0].message
+        content = getattr(msg, "content", None)
+        if not content:
+            tool_calls = getattr(msg, "tool_calls", None)
+            if tool_calls:
+                try:
+                    content = tool_calls[0].function.arguments
+                    logger.info("Parsed intent from tool call arguments")
+                except Exception:
+                    content = None
+        if not content:
+            raise ValueError("Model returned empty response content for intent")
+        return json.loads(content)
         
     except Exception as e:
         logger.error("Failed to analyze intent", error=str(e))

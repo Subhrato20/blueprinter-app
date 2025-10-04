@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List
 
-import fastjsonpatch
+import jsonpatch
 import structlog
 
 logger = structlog.get_logger(__name__)
@@ -62,7 +62,7 @@ def apply_patch(plan_json: Dict[str, Any], patch: List[Dict[str, Any]]) -> Dict[
             raise ValueError("Invalid patch operations")
         
         # Apply the patch using fastjsonpatch
-        patched_plan = fastjsonpatch.apply_patch(plan_json, patch)
+        patched_plan = jsonpatch.apply_patch(plan_json, patch)
         
         logger.info("Successfully applied patch", operations_count=len(patch))
         return patched_plan
@@ -75,7 +75,7 @@ def apply_patch(plan_json: Dict[str, Any], patch: List[Dict[str, Any]]) -> Dict[
 def create_patch_diff(original: Dict[str, Any], modified: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Create a JSON patch diff between original and modified plans."""
     try:
-        patch = fastjsonpatch.make_patch(original, modified)
+        patch = jsonpatch.make_patch(original, modified)
         return patch.patch
         
     except Exception as e:

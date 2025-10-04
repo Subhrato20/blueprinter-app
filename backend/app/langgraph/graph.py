@@ -1,10 +1,10 @@
-"""LangGraph orchestration for plan generation."""
+"""LangGraph-inspired orchestration for plan generation."""
 
 import re
+from dataclasses import dataclass, field
 from typing import Any, Dict, List
 
 import structlog
-from langgraph.graph import StateGraph, END
 
 from app.openai_client import analyze_intent, gpt5_plan
 from app.supabase_client import get_style_profile, get_pattern
@@ -12,18 +12,18 @@ from app.supabase_client import get_style_profile, get_pattern
 logger = structlog.get_logger(__name__)
 
 
+@dataclass
 class PlanGenerationState:
-    """State for plan generation workflow."""
-    
-    def __init__(self):
-        self.idea: str = ""
-        self.project_id: str = ""
-        self.user_id: str = ""
-        self.intent: Dict[str, str] = {}
-        self.pattern: Dict[str, Any] = {}
-        self.style_profile: Dict[str, Any] = {}
-        self.plan_json: Dict[str, Any] = {}
-        self.error: str = ""
+    """Mutable state shared across the plan generation pipeline."""
+
+    idea: str
+    project_id: str
+    user_id: str
+    intent: Dict[str, Any] = field(default_factory=dict)
+    pattern: Dict[str, Any] = field(default_factory=dict)
+    style_profile: Dict[str, Any] = field(default_factory=dict)
+    plan_json: Dict[str, Any] = field(default_factory=dict)
+    error: str = ""
 
 
 async def intent_parser_node(state: PlanGenerationState) -> PlanGenerationState:
@@ -199,51 +199,35 @@ async def style_adaptation_node(state: PlanGenerationState) -> PlanGenerationSta
     return state
 
 
-def create_plan_generation_graph() -> StateGraph:
-    """Create the LangGraph workflow for plan generation."""
-    
-    # Create the state graph
-    workflow = StateGraph(PlanGenerationState)
-    
-    # Add nodes
-    workflow.add_node("intent_parser", intent_parser_node)
-    workflow.add_node("pattern_loader", pattern_loader_node)
-    workflow.add_node("style_adapter", style_adapter_node)
-    workflow.add_node("design", design_node)
-    workflow.add_node("style_adaptation", style_adaptation_node)
-    
-    # Define the flow
-    workflow.set_entry_point("intent_parser")
-    
-    workflow.add_edge("intent_parser", "pattern_loader")
-    workflow.add_edge("pattern_loader", "style_adapter")
-    workflow.add_edge("style_adapter", "design")
-    workflow.add_edge("design", "style_adaptation")
-    workflow.add_edge("style_adaptation", END)
-    
-    return workflow.compile()
-
-
 async def generate_plan(idea: str, project_id: str, user_id: str) -> Dict[str, Any]:
     """Generate a complete development plan."""
     try:
-        # Create the workflow
-        workflow = create_plan_generation_graph()
-        
-        # Initialize state
-        initial_state = PlanGenerationState()
-        initial_state.idea = idea
-        initial_state.project_id = project_id
-        initial_state.user_id = user_id
-        
-        # Run the workflow
-        final_state = await workflow.ainvoke(initial_state)
-        
-        if final_state.error:
-            raise ValueError(final_state.error)
-        
-        return final_state.plan_json
-        
+        logger.info("Starting plan generation", idea=idea, project_id=project_id, user_id=user_id)
+
+        state = PlanGenerationState(
+            idea=idea,
+            project_id=project_id,
+            user_id=user_id,
+        )
+
+        # Run the sequential pipeline (mirrors the planned LangGraph workflow).
+        for node in (
+            intent_parser_node,
+            pattern_loader_node,
+            style_adapter_node,
+            design_node,
+            style_adaptation_node,
+        ):
+            state = await node(state)
+            if state.error:
+                raise ValueError(state.error)
+
+        if not state.plan_json:
+            raise ValueError("Plan generation returned no data")
+
+        logger.info("Plan generated successfully", title=state.plan_json.get("title"))
+        return state.plan_json
+
     except Exception as e:
         logger.error("Plan generation workflow failed", error=str(e))
         raise

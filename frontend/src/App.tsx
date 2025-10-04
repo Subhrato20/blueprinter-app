@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { planApi, downloadZip, openInCursor } from './services/api'
+import { planApi, downloadZip, openInCursor, ApiError } from './services/api'
 import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
 import type { PlanJSON, SelectionState, PatchPreview } from './types'
@@ -39,7 +39,14 @@ function App() {
       setCurrentPlanId(response.planId)
       setIdea('')
     } catch (error) {
-      setError(error.message)
+      if (error instanceof ApiError) {
+        const message = error.detail || error.message || 'Failed to generate plan'
+        setError(message)
+        console.error('Plan generation failed:', error.status, message)
+      } else {
+        console.error('Unexpected error generating plan:', error)
+        setError('Failed to generate plan')
+      }
     } finally {
       setIsLoading(false)
     }

@@ -13,8 +13,9 @@ import type {
 const API_BASE_URL = '/api'
 
 class ApiError extends Error {
-  constructor(public status: number, message: string, public detail?: string) {
-    super(message)
+  constructor(public status: number, message?: string, public detail?: string) {
+    const finalMessage = message || detail || 'Request failed'
+    super(finalMessage)
     this.name = 'ApiError'
   }
 }
@@ -41,7 +42,7 @@ async function apiRequest<T>(
     const response = await fetch(url, config)
     
     if (!response.ok) {
-      const errorData: ApiError = await response.json()
+      const errorData: Partial<ApiError> & { detail?: string; error?: string } = await response.json()
       throw new ApiError(response.status, errorData.error, errorData.detail)
     }
 

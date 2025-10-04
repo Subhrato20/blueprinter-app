@@ -1,5 +1,9 @@
 """Blueprint Snap Backend - FastAPI application with LangGraph orchestration."""
 
+# Load environment variables from .env file first
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator

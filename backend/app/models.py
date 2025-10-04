@@ -31,6 +31,7 @@ class PlanJSON(BaseModel):
 class PlanRequest(BaseModel):
     """Request to create a new plan."""
     idea: str = Field(..., description="One-line idea description")
+    # Accept the incoming "projectId" from the frontend payload
     projectId: str = Field(..., description="Project identifier")
 
 
