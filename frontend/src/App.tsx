@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
-import { planApi, downloadZip, openInCursor, ApiError } from './services/api'
+import { planApi, downloadZip, ApiError } from './services/api'
 import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
+import CodingPreferencesManager from './components/CodingPreferencesManager'
 import type { PlanJSON, SelectionState, PatchPreview } from './types'
 import { 
   Download, 
-  ExternalLink, 
-  Sparkles
+  Copy, 
+  Sparkles,
+  Settings
 } from 'lucide-react'
 
 function App() {
@@ -22,6 +24,7 @@ function App() {
     isActive: false
   })
   const [patchPreview, setPatchPreview] = useState<PatchPreview | null>(null)
+  const [showPreferences, setShowPreferences] = useState(false)
 
   const handleGeneratePlan = async () => {
     if (!idea.trim()) return
@@ -62,11 +65,31 @@ function App() {
     }
   }
 
-  const handleOpenInCursor = async () => {
+  const handleCopyCursorLink = async () => {
     if (!currentPlanId) return
     
     try {
-      await openInCursor(currentPlanId)
+      const response = await fetch('/api/cursor-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ planId: currentPlanId })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate cursor link')
+      }
+
+      const data = await response.json()
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(data.link)
+      
+      // Show success message
+      setError(null)
+      // You could add a toast notification here instead
+      alert('Cursor link copied to clipboard!')
     } catch (error) {
       setError(error.message)
     }
@@ -177,6 +200,13 @@ function App() {
             </div>
             <div className="flex items-center gap-4">
               <button
+                onClick={() => setShowPreferences(!showPreferences)}
+                className="btn-outline flex items-center gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Coding Preferences
+              </button>
+              <button
                 onClick={() => {
                   setCurrentPlan(null)
                   setCurrentPlanId(null)
@@ -205,7 +235,9 @@ function App() {
           </div>
         )}
 
-        {!currentPlan ? (
+        {showPreferences ? (
+          <CodingPreferencesManager />
+        ) : !currentPlan ? (
           <div className="max-w-2xl mx-auto">
             <div className="card">
               <div className="card-header">
@@ -267,11 +299,11 @@ function App() {
                   Download ZIP
                 </button>
                 <button
-                  onClick={handleOpenInCursor}
+                  onClick={handleCopyCursorLink}
                   className="btn-primary flex items-center gap-2"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                  Add to Cursor
+                  <Copy className="h-4 w-4" />
+                  Copy Cursor Link
                 </button>
               </div>
             </div>

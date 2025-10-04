@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api.routes import ask, cursor_link, plan, plan_patch
+from app.api.routes import ask, cursor_link, plan, plan_patch, coding_preferences
 from app.supabase_client import get_supabase_client
 
 logger = structlog.get_logger(__name__)
@@ -61,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(ask.router, prefix="/api", tags=["ask"])
     app.include_router(plan_patch.router, prefix="/api", tags=["plan-patch"])
     app.include_router(cursor_link.router, prefix="/api", tags=["cursor-link"])
+    app.include_router(coding_preferences.router, prefix="/api", tags=["coding-preferences"])
 
     @app.get("/health")
     async def health_check():
