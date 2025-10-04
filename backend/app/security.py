@@ -22,11 +22,13 @@ def get_hmac_secret() -> str:
 def sign_payload(payload: Dict[str, Any]) -> str:
     """Sign a payload with HMAC-SHA256."""
     try:
+        import json
+        
         secret = get_hmac_secret()
-        payload_str = str(payload)
+        payload_json = json.dumps(payload, sort_keys=True, separators=(',', ':'))
         signature = hmac.new(
             secret.encode('utf-8'),
-            payload_str.encode('utf-8'),
+            payload_json.encode('utf-8'),
             hashlib.sha256
         ).digest()
         
@@ -87,8 +89,21 @@ def decode_cursor_payload(data: str, signature: str) -> Dict[str, Any]:
         payload_json = base64.urlsafe_b64decode(data).decode('utf-8')
         payload = json.loads(payload_json)
         
-        # Verify signature
-        if not verify_signature(payload, signature):
+        # Verify signature using the same JSON format as signing
+        secret = get_hmac_secret()
+        normalized_json = json.dumps(payload, sort_keys=True, separators=(',', ':'))
+        expected_signature = hmac.new(
+            secret.encode('utf-8'),
+            normalized_json.encode('utf-8'),
+            hashlib.sha256
+        ).digest()
+        expected_sig_b64 = base64.urlsafe_b64encode(expected_signature).decode('utf-8').rstrip('=')
+        
+        # Add padding to signature if needed
+        sig_padded = signature + '=' * ((4 - len(signature) % 4) % 4)
+        expected_padded = expected_sig_b64 + '=' * ((4 - len(expected_sig_b64) % 4) % 4)
+        
+        if not hmac.compare_digest(sig_padded, expected_padded):
             raise ValueError("Invalid signature")
         
         return payload
