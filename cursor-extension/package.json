@@ -1,0 +1,39 @@
+{
+  "name": "blueprint-snap",
+  "displayName": "Blueprint Snap",
+  "publisher": "subhrato",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.85.0" },
+  "activationEvents": [
+    "onUri"
+  ],
+  "contributes": {
+    "uriHandler": {
+      "scheme": "vscode",
+      "authority": "subhrato.blueprint-snap",
+      "path": "/ingest",
+      "title": "Blueprint Snap Ingest"
+    },
+    "configuration": {
+      "title": "Blueprint Snap",
+      "properties": {
+        "blueprintSnap.secret": {
+          "type": "string",
+          "default": "",
+          "description": "Shared secret for HMAC verification"
+        }
+      }
+    }
+  },
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p ."
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.4.0",
+    "vsce": "^2.15.0",
+    "vscode": "^1.1.37"
+  }
+}

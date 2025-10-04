@@ -1,0 +1,19 @@
+# Node
+node_modules/
+*.log
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+
+# Vite
+dist/
+
+# Env
+.env
+
+# Artifacts
+artifacts/
+local_data/
+.DS_Store
