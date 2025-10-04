@@ -104,7 +104,69 @@ async def gpt5_plan(
                     content = None
         if not content:
             raise ValueError("Model returned empty response content for plan")
-        plan_data = json.loads(content)
+        raw = json.loads(content)
+
+        # Normalize possible variants to the expected PlanJSON shape
+        def _get(obj: Dict[str, Any], *candidates: str, default=None):
+            for key in candidates:
+                if key in obj and obj[key] is not None:
+                    return obj[key]
+            return default
+
+        root = raw.get("plan") if isinstance(raw, dict) and isinstance(raw.get("plan"), dict) else raw
+        if not isinstance(root, dict):
+            raise ValueError("Plan payload is not a JSON object")
+
+        title = _get(root, "title", "name", default=f"Development Plan: {idea}")
+        steps = _get(root, "steps", default=[])
+        files = _get(root, "files", default=[])
+        risks = _get(root, "risks", default=[])
+        tests = _get(root, "tests", default=[])
+        pr_body = _get(root, "prBody", "pr_body", default=f"## Development Plan: {idea}")
+
+        # Coerce lists
+        if not isinstance(steps, list):
+            steps = []
+        if not isinstance(files, list):
+            files = []
+        if not isinstance(risks, list):
+            risks = []
+        if not isinstance(tests, list):
+            tests = []
+
+        # Minimal step coercion
+        def _coerce_step(s: Any) -> Dict[str, Any]:
+            if not isinstance(s, dict):
+                return {"kind": "code", "target": "src/main", "summary": str(s)}
+            kind = s.get("kind") or "code"
+            target = s.get("target") or s.get("path") or "src/main"
+            summary = s.get("summary") or s.get("description") or "Implement step"
+            return {"kind": kind, "target": target, "summary": summary}
+
+        steps = [_coerce_step(s) for s in steps]
+
+        # Minimal file coercion
+        def _coerce_file(f: Any) -> Dict[str, Any]:
+            if not isinstance(f, dict):
+                return {"path": "README.md", "content": str(f)}
+            path = f.get("path") or f.get("file") or "README.md"
+            content_val = f.get("content")
+            if content_val is None:
+                # some models wrap as {content: {language, code}}
+                body = f.get("body") or f.get("code")
+                content_val = body if isinstance(body, str) else json.dumps(body) if body is not None else ""
+            return {"path": path, "content": content_val}
+
+        files = [_coerce_file(f) for f in files]
+
+        plan_data = {
+            "title": title,
+            "steps": steps,
+            "files": files,
+            "risks": risks,
+            "tests": tests,
+            "prBody": pr_body,
+        }
         
         # Convert to our PlanJSON model
         return PlanJSON(
@@ -113,7 +175,7 @@ async def gpt5_plan(
             files=plan_data["files"],
             risks=plan_data["risks"],
             tests=plan_data["tests"],
-            prBody=plan_data["prBody"]
+            prBody=plan_data["prBody"],
         )
         
     except Exception as e:
