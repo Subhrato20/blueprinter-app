@@ -12,6 +12,7 @@ Blueprint Snap is an AI-powered development planning tool that transforms simple
 - **Real-time Collaboration**: Live updates and real-time plan modifications
 - **Cursor Integration**: Deep link integration with VS Code/Cursor for seamless workflow
 - **Pattern Library**: Pre-built development patterns for common scenarios
+- **Fetch History**: Comprehensive tracking and visualization of all API requests with stats and filtering
 - **Secure**: HMAC-signed payloads and comprehensive security measures
 
 ## 🏗️ Architecture

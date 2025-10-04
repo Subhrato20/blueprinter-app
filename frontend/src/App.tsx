@@ -3,12 +3,14 @@ import { planApi, downloadZip, ApiError, askApi, patchApi, cursorApi } from './s
 import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
 import CodingPreferencesManager from './components/CodingPreferencesManager'
+import { FetchHistoryViewer } from './components/FetchHistoryViewer'
 import type { PlanJSON, SelectionState, PatchPreview } from './types'
 import { 
   Download, 
   Copy, 
   Sparkles,
-  Settings
+  Settings,
+  History
 } from 'lucide-react'
 
 function App() {
@@ -25,6 +27,7 @@ function App() {
   })
   const [patchPreview, setPatchPreview] = useState<PatchPreview | null>(null)
   const [showPreferences, setShowPreferences] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   const handleGeneratePlan = async () => {
     if (!idea.trim()) return
@@ -165,7 +168,20 @@ function App() {
             </div>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setShowPreferences(!showPreferences)}
+                onClick={() => {
+                  setShowHistory(!showHistory)
+                  setShowPreferences(false)
+                }}
+                className="btn-outline flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                Fetch History
+              </button>
+              <button
+                onClick={() => {
+                  setShowPreferences(!showPreferences)
+                  setShowHistory(false)
+                }}
                 className="btn-outline flex items-center gap-2"
               >
                 <Settings className="h-4 w-4" />
@@ -176,6 +192,8 @@ function App() {
                   setCurrentPlan(null)
                   setCurrentPlanId(null)
                   setIdea('')
+                  setShowHistory(false)
+                  setShowPreferences(false)
                 }}
                 className="btn-outline flex items-center gap-2"
               >
@@ -200,7 +218,11 @@ function App() {
           </div>
         )}
 
-        {showPreferences ? (
+        {showHistory ? (
+          <div className="h-[calc(100vh-12rem)]">
+            <FetchHistoryViewer />
+          </div>
+        ) : showPreferences ? (
           <CodingPreferencesManager />
         ) : !currentPlan ? (
           <div className="max-w-2xl mx-auto">
