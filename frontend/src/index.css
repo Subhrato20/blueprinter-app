@@ -35,7 +35,7 @@
   }
   
   .btn-success {
-    @apply btn bg-gradient-to-r from-success-600 to-success-700 text-white hover:from-success-700 hover:to-success-800 shadow-success-500/20;
+    @apply btn bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 shadow-green-500/20;
   }
   
   .btn-accent {
@@ -51,7 +51,7 @@
   }
   
   .card {
-    @apply rounded-xl border border-gray-200 bg-white shadow-soft hover:shadow-medium transition-shadow duration-300 overflow-hidden backdrop-blur-sm;
+    @apply rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden backdrop-blur-sm;
   }
   
   .card-header {
@@ -75,7 +75,7 @@
   }
   
   .badge-success {
-    @apply badge border-transparent bg-success-100 text-success-700 hover:bg-success-200;
+    @apply badge border-transparent bg-green-100 text-green-700 hover:bg-green-200;
   }
   
   .badge-warning {
@@ -92,19 +92,19 @@
   
   /* Toast Notifications */
   .toast {
-    @apply fixed bottom-4 right-4 z-50 animate-slide-up;
+    @apply fixed bottom-4 right-4 z-50 animate-pulse;
   }
   
   .toast-success {
-    @apply toast bg-white border-l-4 border-success-500 rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md;
+    @apply toast bg-white border-l-4 border-green-500 rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-md;
   }
   
   .toast-error {
-    @apply toast bg-white border-l-4 border-red-500 rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md;
+    @apply toast bg-white border-l-4 border-red-500 rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-md;
   }
   
   .toast-info {
-    @apply toast bg-white border-l-4 border-primary-500 rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md;
+    @apply toast bg-white border-l-4 border-primary-500 rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-md;
   }
   
   /* Loading States */
@@ -113,7 +113,7 @@
   }
   
   .shimmer {
-    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent;
+    @apply relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-pulse before:bg-gradient-to-r before:from-transparent before:via-white/60 before:to-transparent;
   }
   
   /* Interactive Elements */
@@ -131,7 +131,7 @@
   }
   
   .gradient-success {
-    @apply bg-gradient-to-r from-success-500 to-success-700;
+    @apply bg-gradient-to-r from-green-500 to-green-700;
   }
   
   /* Glass morphism effect */

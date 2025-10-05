@@ -233,7 +233,7 @@ const CodingPreferencesManager: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-6xl mx-auto space-y-6">
       <div className="card">
         <div className="card-content">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -293,7 +293,7 @@ const CodingPreferencesManager: React.FC = () => {
 
       {/* Search Results */}
       {showSearchResults && (
-        <div className="card border-2 border-primary-300 animate-slide-down">
+        <div className="card border-2 border-primary-300 animate-bounce">
           <div className="card-content">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -311,37 +311,38 @@ const CodingPreferencesManager: React.FC = () => {
               <div className="space-y-3">
                 {searchResults.map((pref) => (
                   <div key={pref.id} className="p-4 bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-xl border border-gray-200">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="text-sm font-medium text-blue-600">
-                        {formatCategory(pref.category)}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-sm font-medium text-blue-600">
+                          {formatCategory(pref.category)}
+                        </span>
+                        <p className="text-gray-900">{pref.preference_text}</p>
+                        {pref.context && (
+                          <p className="text-sm text-gray-600">{pref.context}</p>
+                        )}
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        pref.strength === 'weak' ? 'bg-gray-100 text-gray-600' :
+                        pref.strength === 'moderate' ? 'bg-yellow-100 text-yellow-600' :
+                        pref.strength === 'strong' ? 'bg-orange-100 text-orange-600' :
+                        'bg-red-100 text-red-600'
+                      }`}>
+                        {pref.strength}
                       </span>
-                      <p className="text-gray-900">{pref.preference_text}</p>
-                      {pref.context && (
-                        <p className="text-sm text-gray-600">{pref.context}</p>
-                      )}
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      pref.strength === 'weak' ? 'bg-gray-100 text-gray-600' :
-                      pref.strength === 'moderate' ? 'bg-yellow-100 text-yellow-600' :
-                      pref.strength === 'strong' ? 'bg-orange-100 text-orange-600' :
-                      'bg-red-100 text-red-600'
-                    }`}>
-                      {pref.strength}
-                    </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-gray-500">No similar preferences found.</p>
-          )}
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No similar preferences found.</p>
+            )}
+          </div>
         </div>
       )}
 
       {/* Add Form */}
       {showAddForm && (
-        <div className="card border-2 border-primary-300 shadow-medium animate-scale-up">
+        <div className="card border-2 border-primary-300 shadow-medium animate-pulse">
           <div className="card-content">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Add New Preference</h3>
@@ -362,11 +363,11 @@ const CodingPreferencesManager: React.FC = () => {
                   onChange={(e) => setNewPreference({...newPreference, category: e.target.value})}
                   className="input w-full"
                 >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{formatCategory(cat)}</option>
-                ))}
-              </select>
-            </div>
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{formatCategory(cat)}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Preference
@@ -379,7 +380,7 @@ const CodingPreferencesManager: React.FC = () => {
                   rows={3}
                   required
                 />
-            </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Context (optional)
@@ -391,7 +392,7 @@ const CodingPreferencesManager: React.FC = () => {
                   placeholder="When this applies..."
                   className="input w-full"
                 />
-            </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Strength
@@ -401,13 +402,13 @@ const CodingPreferencesManager: React.FC = () => {
                   onChange={(e) => setNewPreference({...newPreference, strength: e.target.value as any})}
                   className="input w-full"
                 >
-                {STRENGTHS.map(strength => (
-                  <option key={strength.value} value={strength.value}>
-                    {strength.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                  {STRENGTHS.map(strength => (
+                    <option key={strength.value} value={strength.value}>
+                      {strength.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
@@ -432,7 +433,7 @@ const CodingPreferencesManager: React.FC = () => {
 
       {/* Edit Form */}
       {editingPreference && (
-        <div className="card border-2 border-accent-300 shadow-medium animate-scale-up">
+        <div className="card border-2 border-accent-300 shadow-medium animate-pulse">
           <div className="card-content">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold bg-gradient-to-r from-accent-600 to-primary-600 bg-clip-text text-transparent">Edit Preference</h3>
@@ -453,11 +454,11 @@ const CodingPreferencesManager: React.FC = () => {
                   onChange={(e) => setEditingPreference({...editingPreference, category: e.target.value})}
                   className="input w-full"
                 >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{formatCategory(cat)}</option>
-                ))}
-              </select>
-            </div>
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>{formatCategory(cat)}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Preference
@@ -469,7 +470,7 @@ const CodingPreferencesManager: React.FC = () => {
                   rows={3}
                   required
                 />
-            </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Context (optional)
@@ -480,7 +481,7 @@ const CodingPreferencesManager: React.FC = () => {
                   onChange={(e) => setEditingPreference({...editingPreference, context: e.target.value})}
                   className="input w-full"
                 />
-            </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Strength
@@ -490,13 +491,13 @@ const CodingPreferencesManager: React.FC = () => {
                   onChange={(e) => setEditingPreference({...editingPreference, strength: e.target.value as any})}
                   className="input w-full"
                 >
-                {STRENGTHS.map(strength => (
-                  <option key={strength.value} value={strength.value}>
-                    {strength.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+                  {STRENGTHS.map(strength => (
+                    <option key={strength.value} value={strength.value}>
+                      {strength.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"

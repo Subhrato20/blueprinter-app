@@ -194,7 +194,7 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
     <div className="space-y-6">
       {/* Patch Preview Toggle */}
       {patchPreview && (
-        <div className="card border-2 border-primary-300 shadow-medium animate-slide-up">
+        <div className="card border-2 border-primary-300 shadow-medium animate-pulse">
           <div className="card-content">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent flex items-center gap-2">

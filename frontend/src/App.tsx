@@ -11,7 +11,9 @@ import {
   Copy, 
   Sparkles,
   Settings,
-  History
+  History,
+  XCircle,
+  Zap
 } from 'lucide-react'
 
 function App() {
@@ -29,6 +31,16 @@ function App() {
   const [patchPreview, setPatchPreview] = useState<PatchPreview | null>(null)
   const [showPreferences, setShowPreferences] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: 'success' | 'error' | 'info' }>>([])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    const id = Math.random().toString(36).substr(2, 9)
+    setToasts(prev => [...prev, { id, message, type }])
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   const handleGeneratePlan = async () => {
     if (!idea.trim()) return
@@ -211,7 +223,7 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg shadow-soft animate-slide-down">
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg shadow-sm animate-pulse">
             <div className="flex items-start gap-3">
               <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1">
@@ -235,7 +247,7 @@ function App() {
           <CodingPreferencesManager />
         ) : !currentPlan ? (
           <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-8 animate-fade-in">
+            <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-primary-500 to-accent-500 mb-4">
                 <Sparkles className="h-8 w-8 text-white" />
               </div>
@@ -244,7 +256,7 @@ function App() {
                 Describe your idea and get a complete plan with files, tests, and implementation steps.
               </p>
             </div>
-            <div className="card animate-scale-up">
+            <div className="card">
               <div className="card-content">
                 <div className="space-y-6">
                   <div>
@@ -299,7 +311,7 @@ function App() {
             </div>
           </div>
         ) : (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-6">
             {/* Plan Actions */}
             <div className="card">
               <div className="card-content">

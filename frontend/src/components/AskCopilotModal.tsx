@@ -41,8 +41,8 @@ export function AskCopilotModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-strong max-w-2xl w-full max-h-[90vh] overflow-hidden animate-scale-up">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-accent-50">
           <div className="flex items-center gap-3">
@@ -126,7 +126,7 @@ export function AskCopilotModal({
 
           {/* Patch Preview */}
           {patchPreview && (
-            <div className="border border-primary-200 rounded-xl overflow-hidden shadow-soft animate-slide-up">
+            <div className="border border-primary-200 rounded-xl overflow-hidden shadow-sm animate-pulse">
               <div className="bg-gradient-to-r from-primary-50 to-blue-50 px-4 py-3 border-b border-primary-100">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-primary-900 flex items-center gap-2">

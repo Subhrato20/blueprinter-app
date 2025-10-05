@@ -30,7 +30,7 @@ export function Toast({ message, type = 'info', duration = 5000, onClose }: Toas
   }
 
   return (
-    <div className={`toast bg-white border-l-4 ${typeClasses[type]} rounded-lg shadow-strong p-4 flex items-start gap-3 max-w-md animate-slide-up`}>
+    <div className={`toast bg-white border-l-4 ${typeClasses[type]} rounded-lg shadow-lg p-4 flex items-start gap-3 max-w-md animate-pulse`}>
       <div className="flex-shrink-0">
         {icons[type]}
       </div>
