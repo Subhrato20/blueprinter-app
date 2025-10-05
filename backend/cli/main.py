@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import click
 import httpx
 import structlog
+import pyperclip
 from rich.console import Console
 from rich.json import JSON
 from rich.panel import Panel
@@ -77,6 +78,24 @@ class BlueprinterClient:
     async def get_plan(self, plan_id: str) -> Dict[str, Any]:
         """Get a plan by ID."""
         response = await self.client.get(f"/api/plan/{plan_id}")
+        response.raise_for_status()
+        return response.json()
+    
+    async def list_plans(self, project_id: str = None, user_id: str = None) -> Dict[str, Any]:
+        """List all plans with optional filtering."""
+        params = {}
+        if project_id:
+            params['project_id'] = project_id
+        if user_id:
+            params['user_id'] = user_id
+        
+        response = await self.client.get("/api/plans", params=params)
+        response.raise_for_status()
+        return response.json()
+    
+    async def get_storage_info(self) -> Dict[str, Any]:
+        """Get storage database information."""
+        response = await self.client.get("/api/storage/info")
         response.raise_for_status()
         return response.json()
     
@@ -283,8 +302,10 @@ def plan():
 @click.argument('idea')
 @click.option('--project-id', default=None, help='Project ID')
 @click.option('--output', '-o', type=click.Path(), help='Output file for plan JSON')
+@click.option('--copy-plan', is_flag=True, help='Copy full plan JSON to clipboard')
+@click.option('--no-clipboard', is_flag=True, help='Disable automatic clipboard copy of plan ID')
 @click.pass_context
-async def create(ctx, idea, project_id, output):
+def create(ctx, idea, project_id, output, copy_plan, no_clipboard):
     """Create a new development plan from an idea."""
     config = ctx.obj['config']
     project_id = project_id or config.get("default_project_id", "default-project")
@@ -297,48 +318,67 @@ async def create(ctx, idea, project_id, output):
         task = progress.add_task("Creating development plan...", total=None)
         
         try:
-            async with BlueprinterClient(config["base_url"], config["api_key"]) as client:
-                result = await client.create_plan(idea, project_id)
-                progress.update(task, description="✅ Plan created successfully")
-                
-                plan_id = result["planId"]
-                plan_data = result["plan"]
-                
-                # Display plan summary
-                table = Table(title=f"Development Plan: {plan_data['title']}")
-                table.add_column("Plan ID", style="cyan")
-                table.add_column("Steps", style="green")
-                table.add_column("Files", style="blue")
-                table.add_column("Risks", style="red")
-                
-                table.add_row(
-                    plan_id,
-                    str(len(plan_data['steps'])),
-                    str(len(plan_data['files'])),
-                    str(len(plan_data['risks']))
-                )
-                
-                console.print(table)
-                
-                # Save to file if requested
-                if output:
-                    with open(output, 'w') as f:
-                        json.dump(result, f, indent=2)
-                    console.print(f"[green]Plan saved to {output}[/green]")
-                
-                console.print(f"[cyan]Plan ID: {plan_id}[/cyan]")
-                
+            result = asyncio.run(create_plan_async(config["base_url"], config["api_key"], idea, project_id))
+            progress.update(task, description="✅ Plan created successfully")
+            
+            plan_id = result["planId"]
+            plan_data = result["plan"]
+            
+            # Display plan summary
+            table = Table(title=f"Development Plan: {plan_data['title']}")
+            table.add_column("Plan ID", style="cyan")
+            table.add_column("Steps", style="green")
+            table.add_column("Files", style="blue")
+            table.add_column("Risks", style="red")
+            
+            table.add_row(
+                plan_id,
+                str(len(plan_data['steps'])),
+                str(len(plan_data['files'])),
+                str(len(plan_data['risks']))
+            )
+            
+            console.print(table)
+            
+            # Save to file if requested
+            if output:
+                with open(output, 'w') as f:
+                    json.dump(result, f, indent=2)
+                console.print(f"[green]Plan saved to {output}[/green]")
+            
+            # Copy to clipboard
+            try:
+                if copy_plan:
+                    # Copy full plan JSON to clipboard
+                    plan_json = json.dumps(result, indent=2)
+                    pyperclip.copy(plan_json)
+                    console.print(f"[green]📋 Full plan copied to clipboard[/green]")
+                elif not no_clipboard:
+                    # Copy just the plan ID to clipboard by default
+                    pyperclip.copy(plan_id)
+                    console.print(f"[green]📋 Plan ID copied to clipboard[/green]")
+            except Exception as e:
+                console.print(f"[yellow]⚠️  Could not copy to clipboard: {e}[/yellow]")
+            
+            console.print(f"[cyan]Plan ID: {plan_id}[/cyan]")
+            
         except Exception as e:
             progress.update(task, description="❌ Failed to create plan")
             console.print(f"[red]Error: {e}[/red]")
             sys.exit(1)
 
 
+async def create_plan_async(base_url: str, api_key: Optional[str], idea: str, project_id: str):
+    """Async plan creation function."""
+    async with BlueprinterClient(base_url, api_key) as client:
+        return await client.create_plan(idea, project_id)
+
+
 @plan.command()
 @click.argument('plan_id')
 @click.option('--output', '-o', type=click.Path(), help='Output file for plan JSON')
 @click.pass_context
-async def get(ctx, plan_id, output):
+def get(ctx, plan_id, output):
     """Get a plan by ID."""
     config = ctx.obj['config']
     
@@ -350,55 +390,168 @@ async def get(ctx, plan_id, output):
         task = progress.add_task("Fetching plan...", total=None)
         
         try:
-            async with BlueprinterClient(config["base_url"], config["api_key"]) as client:
-                result = await client.get_plan(plan_id)
-                progress.update(task, description="✅ Plan fetched successfully")
+            import asyncio
+            async def get_plan_async():
+                async with BlueprinterClient(config["base_url"], config["api_key"]) as client:
+                    return await client.get_plan(plan_id)
+            
+            result = asyncio.run(get_plan_async())
+            progress.update(task, description="✅ Plan fetched successfully")
+            
+            plan_data = result["plan_json"]
+            
+            # Display plan details
+            console.print(Panel(
+                f"Title: {plan_data['title']}\n"
+                f"Steps: {len(plan_data['steps'])}\n"
+                f"Files: {len(plan_data['files'])}\n"
+                f"Risks: {len(plan_data['risks'])}\n"
+                f"Tests: {len(plan_data['tests'])}",
+                title="Plan Details",
+                border_style="blue"
+            ))
+            
+            # Show steps
+            if plan_data['steps']:
+                steps_table = Table(title="Development Steps")
+                steps_table.add_column("Kind", style="cyan")
+                steps_table.add_column("Target", style="green")
+                steps_table.add_column("Summary", style="white")
                 
-                plan_data = result["plan_json"]
+                for step in plan_data['steps']:
+                    steps_table.add_row(step['kind'], step['target'], step['summary'])
                 
-                # Display plan details
-                console.print(Panel(
-                    f"Title: {plan_data['title']}\n"
-                    f"Steps: {len(plan_data['steps'])}\n"
-                    f"Files: {len(plan_data['files'])}\n"
-                    f"Risks: {len(plan_data['risks'])}\n"
-                    f"Tests: {len(plan_data['tests'])}",
-                    title="Plan Details",
-                    border_style="blue"
-                ))
+                console.print(steps_table)
+            
+            # Show files
+            if plan_data['files']:
+                files_table = Table(title="Files to Create")
+                files_table.add_column("Path", style="cyan")
+                files_table.add_column("Content Preview", style="white")
                 
-                # Show steps
-                if plan_data['steps']:
-                    steps_table = Table(title="Development Steps")
-                    steps_table.add_column("Kind", style="cyan")
-                    steps_table.add_column("Target", style="green")
-                    steps_table.add_column("Summary", style="white")
-                    
-                    for step in plan_data['steps']:
-                        steps_table.add_row(step['kind'], step['target'], step['summary'])
-                    
-                    console.print(steps_table)
+                for file_data in plan_data['files']:
+                    preview = file_data['content'][:100] + "..." if len(file_data['content']) > 100 else file_data['content']
+                    files_table.add_row(file_data['path'], preview)
                 
-                # Show files
-                if plan_data['files']:
-                    files_table = Table(title="Files to Create")
-                    files_table.add_column("Path", style="cyan")
-                    files_table.add_column("Content Preview", style="white")
-                    
-                    for file_data in plan_data['files']:
-                        preview = file_data['content'][:100] + "..." if len(file_data['content']) > 100 else file_data['content']
-                        files_table.add_row(file_data['path'], preview)
-                    
-                    console.print(files_table)
-                
-                # Save to file if requested
-                if output:
-                    with open(output, 'w') as f:
-                        json.dump(result, f, indent=2)
-                    console.print(f"[green]Plan saved to {output}[/green]")
+                console.print(files_table)
+            
+            # Save to file if requested
+            if output:
+                with open(output, 'w') as f:
+                    json.dump(result, f, indent=2)
+                console.print(f"[green]Plan saved to {output}[/green]")
                 
         except Exception as e:
             progress.update(task, description="❌ Failed to fetch plan")
+            console.print(f"[red]Error: {e}[/red]")
+            sys.exit(1)
+
+
+@plan.command()
+@click.option('--project-id', help='Filter by project ID')
+@click.option('--user-id', help='Filter by user ID')
+@click.pass_context
+def list(ctx, project_id, user_id):
+    """List all plans."""
+    config = ctx.obj['config']
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Fetching plans...", total=None)
+        
+        try:
+            import asyncio
+            async def list_plans_async():
+                async with BlueprinterClient(config["base_url"], config["api_key"]) as client:
+                    return await client.list_plans(project_id=project_id, user_id=user_id)
+            
+            result = asyncio.run(list_plans_async())
+            plans = result.get("plans", [])
+            
+            progress.update(task, description="✅ Plans fetched successfully")
+            
+            if not plans:
+                console.print("[yellow]No plans found[/yellow]")
+                return
+            
+            # Create table
+            table = Table(title=f"Plans ({len(plans)} total)")
+            table.add_column("ID", style="cyan", no_wrap=True)
+            table.add_column("Project ID", style="magenta")
+            table.add_column("User ID", style="green")
+            table.add_column("Title", style="white")
+            table.add_column("Created", style="blue")
+            
+            for plan in plans:
+                plan_data = plan.get("plan_json", {})
+                table.add_row(
+                    plan["id"][:8] + "...",
+                    plan.get("project_id", "N/A"),
+                    plan.get("user_id", "N/A"),
+                    plan_data.get("title", "Untitled")[:30] + "..." if len(plan_data.get("title", "")) > 30 else plan_data.get("title", "Untitled"),
+                    plan.get("created_at", "N/A")[:10] if plan.get("created_at") else "N/A"
+                )
+            
+            console.print(table)
+                
+        except Exception as e:
+            progress.update(task, description="❌ Failed to list plans")
+            console.print(f"[red]Error: {e}[/red]")
+            sys.exit(1)
+
+
+@plan.command()
+@click.argument('plan_id')
+@click.pass_context
+def copy_id(ctx, plan_id):
+    """Copy a plan ID to clipboard."""
+    try:
+        import pyperclip
+        pyperclip.copy(plan_id)
+        console.print(f"[green]✅ Plan ID copied to clipboard:[/green] {plan_id}")
+    except Exception as e:
+        console.print(f"[yellow]⚠️  Could not copy to clipboard: {e}[/yellow]")
+        console.print(f"[cyan]Plan ID:[/cyan] {plan_id}")
+
+
+@plan.command()
+@click.pass_context
+def storage_info(ctx):
+    """Get storage database information."""
+    config = ctx.obj['config']
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Getting storage info...", total=None)
+        
+        try:
+            import asyncio
+            async def get_storage_info_async():
+                async with BlueprinterClient(config["base_url"], config["api_key"]) as client:
+                    return await client.get_storage_info()
+            
+            info = asyncio.run(get_storage_info_async())
+            
+            progress.update(task, description="✅ Storage info retrieved")
+            
+            console.print(Panel(
+                f"Database Path: {info['database_path']}\n"
+                f"Plans: {info['plan_count']}\n"
+                f"Messages: {info['message_count']}\n"
+                f"Revisions: {info['revision_count']}\n"
+                f"Database Size: {info['database_size']:,} bytes",
+                title="Storage Information",
+                border_style="green"
+            ))
+                
+        except Exception as e:
+            progress.update(task, description="❌ Failed to get storage info")
             console.print(f"[red]Error: {e}[/red]")
             sys.exit(1)
 

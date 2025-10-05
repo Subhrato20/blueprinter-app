@@ -118,3 +118,38 @@ export interface PatchPreview {
   patch: PatchResponse['patch'];
   rationale: string;
 }
+
+export interface FetchHistoryItem {
+  id: string;
+  user_id?: string;
+  endpoint: string;
+  method: string;
+  request_data?: Record<string, any>;
+  response_data?: Record<string, any>;
+  status_code?: number;
+  duration_ms?: number;
+  error_message?: string;
+  created_at: string;
+}
+
+export interface FetchHistoryResponse {
+  items: FetchHistoryItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface FetchHistoryStats {
+  total_requests: number;
+  methods: Record<string, number>;
+  endpoints: Record<string, number>;
+  status_codes: Record<string, number>;
+  average_duration_ms: number;
+  error_count: number;
+  success_rate: number;
+}
+
+export interface PlanRequest {
+  idea: string;
+  projectId: string;
+}

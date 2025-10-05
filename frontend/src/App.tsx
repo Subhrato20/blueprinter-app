@@ -4,14 +4,14 @@ import { PlanViewer } from './components/PlanViewer'
 import { AskCopilotModal } from './components/AskCopilotModal'
 import { ToastContainer } from './components/Toast'
 import CodingPreferencesManager from './components/CodingPreferencesManager'
+import { FetchHistoryViewer } from './components/FetchHistoryViewer'
 import type { PlanJSON, SelectionState, PatchPreview } from './types'
 import { 
   Download, 
   Copy, 
   Sparkles,
   Settings,
-  Zap,
-  XCircle
+  History
 } from 'lucide-react'
 
 function App() {
@@ -28,16 +28,7 @@ function App() {
   })
   const [patchPreview, setPatchPreview] = useState<PatchPreview | null>(null)
   const [showPreferences, setShowPreferences] = useState(false)
-  const [toasts, setToasts] = useState<Array<{ id: string; message: string; type?: 'success' | 'error' | 'info' }>>([])
-
-  const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const id = Math.random().toString(36).substring(7)
-    setToasts((prev) => [...prev, { id, message, type }])
-  }
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id))
-  }
+  const [showHistory, setShowHistory] = useState(false)
 
   const handleGeneratePlan = async () => {
     if (!idea.trim()) return
@@ -181,7 +172,20 @@ function App() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowPreferences(!showPreferences)}
+                onClick={() => {
+                  setShowHistory(!showHistory)
+                  setShowPreferences(false)
+                }}
+                className="btn-outline flex items-center gap-2"
+              >
+                <History className="h-4 w-4" />
+                Fetch History
+              </button>
+              <button
+                onClick={() => {
+                  setShowPreferences(!showPreferences)
+                  setShowHistory(false)
+                }}
                 className="btn-outline flex items-center gap-2"
               >
                 <Settings className="h-4 w-4" />
@@ -192,7 +196,8 @@ function App() {
                   setCurrentPlan(null)
                   setCurrentPlanId(null)
                   setIdea('')
-                  addToast('Ready to create a new plan!', 'info')
+                  setShowHistory(false)
+                  setShowPreferences(false)
                 }}
                 className="btn-primary flex items-center gap-2"
               >
@@ -222,7 +227,11 @@ function App() {
           </div>
         )}
 
-        {showPreferences ? (
+        {showHistory ? (
+          <div className="h-[calc(100vh-12rem)]">
+            <FetchHistoryViewer />
+          </div>
+        ) : showPreferences ? (
           <CodingPreferencesManager />
         ) : !currentPlan ? (
           <div className="max-w-3xl mx-auto">
