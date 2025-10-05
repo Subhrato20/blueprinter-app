@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from typing import Any, Dict, List
 
 import structlog
@@ -14,6 +15,47 @@ logger = structlog.get_logger(__name__)
 
 # OpenAI client will be initialized lazily
 client = None
+
+
+def _extract_json_object(text: str) -> Dict[str, Any]:
+    """Best-effort JSON extractor for chat completions.
+
+    - Strips code fences if present
+    - Extracts the first top-level JSON object if extra text wraps it
+    """
+    if not text:
+        raise ValueError("Empty response content")
+
+    t = text.strip()
+
+    # Remove code fences like ```json ... ``` or ``` ... ```
+    if t.startswith("```"):
+        # keep inner content between the first and last triple backticks
+        parts = t.split("```")
+        if len(parts) >= 3:
+            # The middle part is the content; sometimes language tag present at start
+            inner = parts[1]
+            # Drop a leading language tag (e.g., json) on the same line
+            inner = re.sub(r"^\s*json\s*\n", "", inner, flags=re.IGNORECASE)
+            t = inner.strip()
+
+    # If it's already valid JSON
+    try:
+        return json.loads(t)
+    except Exception:
+        pass
+
+    # Try to locate the outermost JSON object
+    start = t.find("{")
+    end = t.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        candidate = t[start : end + 1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+
+    raise ValueError("Unable to parse JSON from model response")
 
 
 def get_model() -> str:
@@ -76,12 +118,10 @@ async def gpt5_plan(
         
         tool_schema = PlanOut.model_json_schema()
         
-        # Note: This is a placeholder for the actual GPT-5 API call
-        # The actual implementation will depend on the final GPT-5 API structure
         model_name = get_model()
         logger.info("Calling OpenAI for plan", model=model_name)
-        # Hardcode response_format off for compatibility
-        use_resp_format = False
+        # Prefer JSON response formatting for reliable parsing
+        use_resp_format = True
         kwargs = {
             "model": model_name,
             "messages": [
@@ -107,7 +147,7 @@ async def gpt5_plan(
                     content = None
         if not content:
             raise ValueError("Model returned empty response content for plan")
-        raw = json.loads(content)
+        raw = _extract_json_object(content)
 
         # Normalize possible variants to the expected PlanJSON shape
         def _get(obj: Dict[str, Any], *candidates: str, default=None):
@@ -170,6 +210,36 @@ async def gpt5_plan(
             "tests": tests,
             "prBody": pr_body,
         }
+
+        # Apply safe fallbacks if the model returned sparse content
+        try:
+            tmpl = pattern.get("template", {}) if isinstance(pattern, dict) else {}
+            if not plan_data["steps"]:
+                plan_data["steps"] = tmpl.get("steps", []) or [
+                    {"kind": "code", "target": "main", "summary": "Implement core functionality"},
+                    {"kind": "test", "target": "tests", "summary": "Add tests"},
+                    {"kind": "config", "target": "config", "summary": "Update configuration"},
+                ]
+            if not plan_data["files"]:
+                default_readme = f"# {title}\n\nThis project implements: {idea}\n\n## Notes\n- Generated with default fallbacks."
+                plan_data["files"] = tmpl.get("files", []) or [
+                    {"path": "README.md", "content": default_readme}
+                ]
+            if not plan_data["risks"]:
+                plan_data["risks"] = tmpl.get("risks", []) or [
+                    "Consider edge cases",
+                    "Test thoroughly",
+                ]
+            if not plan_data["tests"]:
+                plan_data["tests"] = tmpl.get("tests", []) or [
+                    "Unit tests",
+                    "Integration tests",
+                ]
+            if not plan_data["prBody"]:
+                plan_data["prBody"] = tmpl.get("prBody", f"## Development Plan: {idea}")
+        except Exception:
+            # Non-fatal; keep whatever we have
+            pass
         
         # Convert to our PlanJSON model
         return PlanJSON(
@@ -197,10 +267,9 @@ async def gpt5_patch(context: Dict[str, Any]) -> PatchResponse:
             "Focus on the specific area requested by the user."
         )
         
-        # Note: This is a placeholder for the actual GPT-5 API call
         model_name = get_model()
         logger.info("Calling OpenAI for patch", model=model_name)
-        use_resp_format = False
+        use_resp_format = True
         kwargs = {
             "model": model_name,
             "messages": [
@@ -225,7 +294,7 @@ async def gpt5_patch(context: Dict[str, Any]) -> PatchResponse:
                     content = None
         if not content:
             raise ValueError("Model returned empty response content for patch")
-        patch_data = json.loads(content)
+        patch_data = _extract_json_object(content)
         
         return PatchResponse(
             rationale=patch_data["rationale"],
@@ -249,7 +318,7 @@ async def analyze_intent(idea: str) -> Dict[str, str]:
         
         model_name = get_model()
         logger.info("Calling OpenAI for intent", model=model_name)
-        use_resp_format = False
+        use_resp_format = True
         kwargs = {
             "model": model_name,
             "messages": [
@@ -274,7 +343,7 @@ async def analyze_intent(idea: str) -> Dict[str, str]:
                     content = None
         if not content:
             raise ValueError("Model returned empty response content for intent")
-        return json.loads(content)
+        return _extract_json_object(content)
         
     except Exception as e:
         logger.error("Failed to analyze intent", error=str(e))
