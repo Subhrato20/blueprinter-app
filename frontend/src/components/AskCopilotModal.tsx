@@ -41,22 +41,25 @@ export function AskCopilotModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-strong max-w-2xl w-full max-h-[90vh] overflow-hidden animate-scale-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-primary-50 to-accent-50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary-100 rounded-lg">
-              <Sparkles className="h-5 w-5 text-primary-600" />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-accent-500 blur opacity-40 rounded-lg"></div>
+              <div className="relative p-2 bg-gradient-to-r from-primary-600 to-accent-600 rounded-lg">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Ask Copilot</h2>
-              <p className="text-sm text-gray-600">Get AI suggestions for your plan</p>
+              <h2 className="text-lg font-semibold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent">Ask AI Copilot</h2>
+              <p className="text-sm text-gray-600">Get intelligent suggestions for your plan</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-white rounded-lg transition-all duration-200 hover:shadow-sm"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
@@ -65,18 +68,21 @@ export function AskCopilotModal({
         {/* Content */}
         <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           {/* Selection Context */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">Selected Context</h3>
-            <div className="space-y-2">
+          <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 rounded-xl p-4 border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-primary-600" />
+              Selected Context
+            </h3>
+            <div className="space-y-3">
               <div>
-                <span className="text-xs font-medium text-gray-600">Path:</span>
-                <code className="ml-2 text-xs bg-white px-2 py-1 rounded border">
+                <span className="text-xs font-semibold text-gray-600 mb-1 block">Path:</span>
+                <code className="text-xs bg-white px-3 py-2 rounded-lg border border-gray-200 block">
                   {selection.nodePath}
                 </code>
               </div>
               <div>
-                <span className="text-xs font-medium text-gray-600">Text:</span>
-                <p className="mt-1 text-sm text-gray-800 bg-white p-2 rounded border font-mono">
+                <span className="text-xs font-semibold text-gray-600 mb-1 block">Text:</span>
+                <p className="text-sm text-gray-800 bg-white p-3 rounded-lg border border-gray-200 font-mono">
                   {selection.selectionText}
                 </p>
               </div>
@@ -86,8 +92,8 @@ export function AskCopilotModal({
           {/* Question Input */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="question" className="block text-sm font-medium text-gray-700 mb-2">
-                What would you like to ask about this selection?
+              <label htmlFor="question" className="block text-sm font-semibold text-gray-700 mb-3">
+                🤔 What would you like to ask about this selection?
               </label>
               <textarea
                 id="question"
@@ -102,17 +108,17 @@ export function AskCopilotModal({
             <button
               type="submit"
               disabled={!question.trim() || isLoading}
-              className="btn-primary flex items-center gap-2"
+              className="btn-primary flex items-center gap-2 w-full justify-center"
             >
               {isLoading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Asking Copilot...
+                  <span>Asking AI Copilot...</span>
                 </>
               ) : (
                 <>
                   <Send className="h-4 w-4" />
-                  Ask Copilot
+                  <span>Ask AI Copilot</span>
                 </>
               )}
             </button>
@@ -120,13 +126,16 @@ export function AskCopilotModal({
 
           {/* Patch Preview */}
           {patchPreview && (
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <div className="border border-primary-200 rounded-xl overflow-hidden shadow-soft animate-slide-up">
+              <div className="bg-gradient-to-r from-primary-50 to-blue-50 px-4 py-3 border-b border-primary-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-gray-900">Copilot Response</h3>
+                  <h3 className="text-sm font-semibold text-primary-900 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary-600" />
+                    AI Copilot Response
+                  </h3>
                   <button
                     onClick={() => setShowPreview(!showPreview)}
-                    className="text-sm text-primary-600 hover:text-primary-700"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                   >
                     {showPreview ? 'Hide' : 'Show'} Details
                   </button>
@@ -135,8 +144,11 @@ export function AskCopilotModal({
               
               <div className="p-4">
                 <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Rationale</h4>
-                  <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded border">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-blue-600" />
+                    Rationale
+                  </h4>
+                  <p className="text-sm text-gray-700 bg-gradient-to-br from-blue-50 to-primary-50 p-4 rounded-lg border border-blue-200">
                     {patchPreview.rationale}
                   </p>
                 </div>
@@ -144,8 +156,8 @@ export function AskCopilotModal({
                 {showPreview && (
                   <div className="space-y-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-2">Proposed Changes</h4>
-                      <div className="bg-gray-50 p-3 rounded border">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-2">🔧 Proposed Changes</h4>
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <pre className="text-xs text-gray-800 font-mono overflow-x-auto">
                           {JSON.stringify(patchPreview.patch, null, 2)}
                         </pre>
@@ -157,14 +169,14 @@ export function AskCopilotModal({
                 <div className="flex items-center gap-3 mt-4">
                   <button
                     onClick={handleApplyPatch}
-                    className="btn-primary flex items-center gap-2"
+                    className="btn-success flex items-center gap-2"
                   >
                     <Check className="h-4 w-4" />
                     Apply Changes
                   </button>
                   <button
                     onClick={() => setShowPreview(false)}
-                    className="btn-outline flex items-center gap-2"
+                    className="btn-secondary flex items-center gap-2"
                   >
                     <XCircle className="h-4 w-4" />
                     Dismiss
@@ -176,7 +188,7 @@ export function AskCopilotModal({
 
           {/* Quick Questions */}
           <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Questions</h3>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">⚡ Quick Questions</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {[
                 "How can I improve this?",
@@ -189,7 +201,7 @@ export function AskCopilotModal({
                 <button
                   key={quickQuestion}
                   onClick={() => setQuestion(quickQuestion)}
-                  className="text-left p-3 text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg border transition-colors"
+                  className="text-left p-3 text-sm text-gray-700 bg-gradient-to-br from-gray-50 to-blue-50/30 hover:from-primary-50 hover:to-accent-50 rounded-lg border border-gray-200 hover:border-primary-300 transition-all duration-200 hover:shadow-sm"
                   disabled={isLoading}
                 >
                   {quickQuestion}

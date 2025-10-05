@@ -10,7 +10,8 @@ import {
   ChevronRight,
   Copy,
   Eye,
-  EyeOff
+  EyeOff,
+  Sparkles
 } from 'lucide-react'
 import type { PlanJSON, SelectionState, PatchPreview } from '../types'
 import { applyPatch } from 'fast-json-patch'
@@ -28,9 +29,9 @@ const stepIcons = {
 }
 
 const stepColors = {
-  code: 'text-blue-600 bg-blue-100',
-  test: 'text-green-600 bg-green-100',
-  config: 'text-purple-600 bg-purple-100',
+  code: 'text-blue-700 bg-gradient-to-br from-blue-100 to-blue-50 border-blue-200',
+  test: 'text-success-700 bg-gradient-to-br from-success-100 to-success-50 border-success-200',
+  config: 'text-accent-700 bg-gradient-to-br from-accent-100 to-accent-50 border-accent-200',
 }
 
 export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps) {
@@ -78,18 +79,18 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
     return (
       <div
         key={index}
-        className="flex items-start gap-3 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+        className="group flex items-start gap-4 p-5 border-2 border-gray-200 rounded-xl hover:border-primary-300 hover:shadow-soft cursor-pointer transition-all duration-200 bg-white"
         onClick={() => handleTextSelection(`/steps/${index}/summary`, step.summary)}
       >
-        <div className={`p-2 rounded-md ${colorClass}`}>
-          <Icon className="h-4 w-4" />
+        <div className={`p-3 rounded-xl ${colorClass} border shadow-sm group-hover:scale-110 transition-transform duration-200`}>
+          <Icon className="h-5 w-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-medium text-gray-900">{step.target}</span>
-            <span className={`badge ${colorClass}`}>{step.kind}</span>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm font-semibold text-gray-900">{step.target}</span>
+            <span className={`badge ${colorClass} border`}>{step.kind}</span>
           </div>
-          <p className="text-sm text-gray-600">{step.summary}</p>
+          <p className="text-sm text-gray-600 leading-relaxed">{step.summary}</p>
         </div>
       </div>
     )
@@ -100,15 +101,19 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
     const lines = file.content.split('\n').length
     
     return (
-      <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+      <div key={index} className="border-2 border-gray-200 rounded-xl overflow-hidden hover:border-primary-300 transition-all duration-200">
         <div
-          className="flex items-center justify-between p-4 bg-gray-50 cursor-pointer hover:bg-gray-100"
+          className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 cursor-pointer hover:from-gray-100 hover:to-blue-100/30 transition-all duration-200"
           onClick={() => toggleFile(index)}
         >
           <div className="flex items-center gap-3">
-            <FileText className="h-4 w-4 text-gray-500" />
-            <span className="font-medium text-gray-900">{file.path}</span>
-            <span className="text-sm text-gray-500">{lines} lines</span>
+            <div className="p-2 rounded-lg bg-white shadow-sm">
+              <FileText className="h-4 w-4 text-primary-600" />
+            </div>
+            <div>
+              <span className="font-semibold text-gray-900 block">{file.path}</span>
+              <span className="text-xs text-gray-500">{lines} lines</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -116,21 +121,22 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
                 e.stopPropagation()
                 copyToClipboard(file.content)
               }}
-              className="p-1 hover:bg-gray-200 rounded"
+              className="p-2 hover:bg-white rounded-lg transition-colors"
+              title="Copy to clipboard"
             >
-              <Copy className="h-4 w-4 text-gray-500" />
+              <Copy className="h-4 w-4 text-gray-600" />
             </button>
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-gray-500" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             )}
           </div>
         </div>
         {isExpanded && (
-          <div className="p-4 bg-white">
+          <div className="p-4 bg-white border-t border-gray-200">
             <pre
-              className="text-sm text-gray-800 whitespace-pre-wrap font-mono cursor-pointer"
+              className="text-sm text-gray-800 whitespace-pre-wrap font-mono cursor-pointer hover:bg-gray-50 p-3 rounded-lg transition-colors"
               onClick={() => handleTextSelection(`/files/${index}/content`, file.content)}
             >
               {file.content}
@@ -145,11 +151,13 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
     return (
       <div
         key={index}
-        className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg cursor-pointer hover:bg-yellow-100"
+        className="flex items-start gap-3 p-4 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl cursor-pointer hover:border-yellow-300 hover:shadow-soft transition-all duration-200"
         onClick={() => handleTextSelection(`/risks/${index}`, risk)}
       >
-        <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-yellow-800">{risk}</p>
+        <div className="p-2 rounded-lg bg-white shadow-sm">
+          <AlertTriangle className="h-4 w-4 text-yellow-600" />
+        </div>
+        <p className="text-sm text-yellow-900 leading-relaxed flex-1">{risk}</p>
       </div>
     )
   }
@@ -158,11 +166,13 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
     return (
       <div
         key={index}
-        className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-lg cursor-pointer hover:bg-green-100"
+        className="flex items-start gap-3 p-4 bg-gradient-to-br from-success-50 to-emerald-50 border-2 border-success-200 rounded-xl cursor-pointer hover:border-success-300 hover:shadow-soft transition-all duration-200"
         onClick={() => handleTextSelection(`/tests/${index}`, test)}
       >
-        <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-        <p className="text-sm text-green-800">{test}</p>
+        <div className="p-2 rounded-lg bg-white shadow-sm">
+          <CheckCircle className="h-4 w-4 text-success-600" />
+        </div>
+        <p className="text-sm text-success-900 leading-relaxed flex-1">{test}</p>
       </div>
     )
   }
@@ -170,10 +180,10 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
   const renderPRBody = () => {
     return (
       <div
-        className="p-4 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100"
+        className="p-5 bg-gradient-to-br from-gray-50 to-blue-50/30 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-primary-300 hover:shadow-soft transition-all duration-200"
         onClick={() => handleTextSelection('/prBody', plan.prBody)}
       >
-        <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+        <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
           {plan.prBody}
         </pre>
       </div>
@@ -184,10 +194,13 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
     <div className="space-y-6">
       {/* Patch Preview Toggle */}
       {patchPreview && (
-        <div className="card">
+        <div className="card border-2 border-primary-300 shadow-medium animate-slide-up">
           <div className="card-content">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Patch Preview</h3>
+              <h3 className="text-lg font-bold bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary-600" />
+                AI Patch Preview
+              </h3>
               <button
                 onClick={() => setShowPatchPreview(!showPatchPreview)}
                 className="btn-outline flex items-center gap-2"
@@ -207,20 +220,24 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
             </div>
             {showPatchPreview && (
               <div className="space-y-4">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Rationale</h4>
-                  <p className="text-sm text-blue-800">{patchPreview.rationale}</p>
+                <div className="p-5 bg-gradient-to-br from-blue-50 to-primary-50 border-2 border-blue-200 rounded-xl">
+                  <h4 className="font-semibold text-blue-900 mb-2">💡 Rationale</h4>
+                  <p className="text-sm text-blue-800 leading-relaxed">{patchPreview.rationale}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Original</h4>
-                    <div className="p-3 bg-red-50 border border-red-200 rounded text-sm font-mono">
+                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <span className="text-red-600">❌</span> Original
+                    </h4>
+                    <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl text-sm font-mono overflow-x-auto">
                       {JSON.stringify(patchPreview.original, null, 2)}
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Modified</h4>
-                    <div className="p-3 bg-green-50 border border-green-200 rounded text-sm font-mono">
+                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <span className="text-success-600">✅</span> Modified
+                    </h4>
+                    <div className="p-4 bg-success-50 border-2 border-success-200 rounded-xl text-sm font-mono overflow-x-auto">
                       {JSON.stringify(patchPreview.modified, null, 2)}
                     </div>
                   </div>
@@ -234,15 +251,18 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
       {/* Steps Section */}
       <div className="card">
         <div
-          className="card-header cursor-pointer"
+          className="card-header cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={() => toggleSection('steps')}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Development Steps</h3>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Code className="h-5 w-5 text-primary-600" />
+              Development Steps
+            </h3>
             {expandedSections.steps ? (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-gray-500" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             )}
           </div>
         </div>
@@ -258,15 +278,18 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
       {/* Files Section */}
       <div className="card">
         <div
-          className="card-header cursor-pointer"
+          className="card-header cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={() => toggleSection('files')}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Files to Create/Modify</h3>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-600" />
+              Files to Create/Modify
+            </h3>
             {expandedSections.files ? (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-gray-500" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             )}
           </div>
         </div>
@@ -282,15 +305,18 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
       {/* Risks Section */}
       <div className="card">
         <div
-          className="card-header cursor-pointer"
+          className="card-header cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={() => toggleSection('risks')}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Potential Risks</h3>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              Potential Risks
+            </h3>
             {expandedSections.risks ? (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-gray-500" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             )}
           </div>
         </div>
@@ -306,15 +332,18 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
       {/* Tests Section */}
       <div className="card">
         <div
-          className="card-header cursor-pointer"
+          className="card-header cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={() => toggleSection('tests')}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Test Scenarios</h3>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <TestTube className="h-5 w-5 text-success-600" />
+              Test Scenarios
+            </h3>
             {expandedSections.tests ? (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-gray-500" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             )}
           </div>
         </div>
@@ -330,15 +359,18 @@ export function PlanViewer({ plan, onSelection, patchPreview }: PlanViewerProps)
       {/* PR Body Section */}
       <div className="card">
         <div
-          className="card-header cursor-pointer"
+          className="card-header cursor-pointer hover:bg-gray-100 transition-colors"
           onClick={() => toggleSection('prBody')}
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Pull Request Body</h3>
+            <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Copy className="h-5 w-5 text-accent-600" />
+              Pull Request Body
+            </h3>
             {expandedSections.prBody ? (
-              <ChevronDown className="h-5 w-5 text-gray-500" />
+              <ChevronDown className="h-5 w-5 text-gray-600" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-gray-500" />
+              <ChevronRight className="h-5 w-5 text-gray-600" />
             )}
           </div>
         </div>
