@@ -1,4 +1,4 @@
-# Blueprint Snap — Dev DNA Edition
+# Blueprinter
 
 **One-line idea → Plan JSON + style-adapted scaffolds + Ask-Copilot + Cursor deep link**
 
