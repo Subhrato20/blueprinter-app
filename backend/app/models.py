@@ -98,3 +98,36 @@ class ErrorResponse(BaseModel):
     """Error response model."""
     error: str = Field(..., description="Error message")
     detail: Optional[str] = Field(None, description="Additional error details")
+
+
+class FetchHistoryItem(BaseModel):
+    """Fetch history item model."""
+    id: str = Field(..., description="History item ID")
+    user_id: Optional[str] = Field(None, description="User ID")
+    endpoint: str = Field(..., description="API endpoint")
+    method: str = Field(..., description="HTTP method")
+    request_data: Optional[Dict[str, Any]] = Field(None, description="Request payload")
+    response_data: Optional[Dict[str, Any]] = Field(None, description="Response data")
+    status_code: Optional[int] = Field(None, description="HTTP status code")
+    duration_ms: Optional[int] = Field(None, description="Request duration in milliseconds")
+    error_message: Optional[str] = Field(None, description="Error message if request failed")
+    created_at: str = Field(..., description="Timestamp of the request")
+
+
+class FetchHistoryResponse(BaseModel):
+    """Response containing fetch history."""
+    items: List[FetchHistoryItem] = Field(..., description="History items")
+    total: int = Field(..., description="Total number of items")
+    page: int = Field(default=1, description="Current page")
+    page_size: int = Field(default=50, description="Items per page")
+
+
+class CreateFetchHistoryRequest(BaseModel):
+    """Request to create a fetch history entry."""
+    endpoint: str = Field(..., description="API endpoint")
+    method: str = Field(..., description="HTTP method")
+    request_data: Optional[Dict[str, Any]] = Field(None, description="Request payload")
+    response_data: Optional[Dict[str, Any]] = Field(None, description="Response data")
+    status_code: Optional[int] = Field(None, description="HTTP status code")
+    duration_ms: Optional[int] = Field(None, description="Request duration in milliseconds")
+    error_message: Optional[str] = Field(None, description="Error message if request failed")
